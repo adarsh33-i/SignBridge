@@ -247,12 +247,24 @@ abstract final class SignLibrary {
       gloss: 'ME',
       keys: [
         _k(
-          _hand(HandShape.point, shoulder: 52, elbow: 196, wrist: 50, lift: 0.4),
+          _hand(
+            HandShape.point,
+            shoulder: 52,
+            elbow: 196,
+            wrist: 50,
+            lift: 0.4,
+          ),
           travel: 0,
           hold: 80,
         ),
         _k(
-          _hand(HandShape.point, shoulder: 46, elbow: 188, wrist: 44, lift: 0.4),
+          _hand(
+            HandShape.point,
+            shoulder: 46,
+            elbow: 188,
+            wrist: 44,
+            lift: 0.4,
+          ),
           hold: 60,
         ),
       ],
@@ -346,13 +358,21 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // Index finger snaps down against the thumb: NO.
+    // Index and middle fingers snap down against the thumb: NO.
+    // The reference clip holds a U hand for the first beat and closes it, so a
+    // lone pointer undersold the sign; the two-finger hand is the visible
+    // difference from YES.
     'no': SignAnimation(
       id: 'no',
       gloss: 'NO',
       keys: [
         _k(
-          _hand(HandShape.point, shoulder: 20, elbow: 186, wrist: -18),
+          _hand(
+            FingerspellShapes.letters['u']!,
+            shoulder: 20,
+            elbow: 186,
+            wrist: -18,
+          ),
           travel: 0,
           hold: 60,
         ),
@@ -650,27 +670,32 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // H-hand moves forward twice: GO.
+    // Both index hands push forward twice: GO.
+    // The reference clip is two-handed — a lone H hand was the largest
+    // handedness miss in the audit. The pair sits at chest height and nudges
+    // forward together; at card size the repeated push is the word.
     'go': SignAnimation(
       id: 'go',
       gloss: 'GO',
       keys: [
         _k(
-          _hand(
-            FingerspellShapes.letters['h']!,
-            shoulder: 66,
-            elbow: 150,
-            lift: 0.35,
+          _mirrored(
+            HandShape.point,
+            shoulder: 70,
+            elbow: 188,
+            wrist: -20,
+            lift: 0.1,
           ),
           travel: 0,
           hold: 60,
         ),
         _k(
-          _hand(
-            FingerspellShapes.letters['h']!,
-            shoulder: 88,
-            elbow: 128,
-            lift: 0.15,
+          _mirrored(
+            HandShape.point,
+            shoulder: 84,
+            elbow: 174,
+            wrist: -20,
+            lift: 0.16,
           ),
           hold: 80,
         ),
@@ -725,24 +750,21 @@ abstract final class SignLibrary {
       ],
     ),
 
-    // Index taps the forehead and pulls away: KNOW.
+    // Flat hand taps the temple and pulls away: KNOW.
+    // The reference clip lands a four-finger B hand on the side of the brow,
+    // not a pointing index. Kept on the temple so the fingers sit over the
+    // hairline instead of across the eyes.
     'know': SignAnimation(
       id: 'know',
       gloss: 'KNOW',
       keys: [
         _k(
-          _atFace(HandShape.point, _FaceSpot.forehead, wrist: -10),
+          _atFace(HandShape.flat, _FaceSpot.temple, wrist: -10),
           travel: 0,
           hold: 90,
         ),
         _k(
-          _hand(
-            HandShape.point,
-            shoulder: 96,
-            elbow: 150,
-            lower: 16,
-            lift: 0.5,
-          ),
+          _hand(HandShape.flat, shoulder: 96, elbow: 150, lower: 16, lift: 0.5),
           hold: 110,
         ),
       ],
@@ -1077,25 +1099,45 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // Both 8-hands rub a circle on the chest: ENJOY.
-    // One hand at chest height sits out to the side of the body rather than on
-    // it, so the rub is authored mirrored — three offsets of shoulder and wrist
-    // trace the arc, and a still circle reads as NEED.
+    // Both open palms rub a circle on the chest: ENJOY.
+    // The reference clip signs this with the dominant flat hand circling over
+    // the back of the other, both palms open at the chest centre. The 8-hands
+    // this used to rub with were the wrong shape, and the old angles left the
+    // pair out beside the shoulders. The wrist offset makes the near hand ride
+    // a little higher than the far one, which is the stacked-palms silhouette.
     'enjoy': SignAnimation(
       id: 'enjoy',
       gloss: 'ENJOY',
       keys: [
         _k(
-          _both(_eight, shoulder: 32, elbow: 174, wrist: -18, lift: 0.52),
+          _both(
+            HandShape.flat,
+            shoulder: 60,
+            elbow: 200,
+            wrist: -20,
+            lift: 0.9,
+          ),
           travel: 0,
           hold: 50,
         ),
         _k(
-          _both(_eight, shoulder: 42, elbow: 166, wrist: 10, lift: 0.44),
+          _both(
+            HandShape.flat,
+            shoulder: 66,
+            elbow: 192,
+            wrist: -14,
+            lift: 0.84,
+          ),
           hold: 55,
         ),
         _k(
-          _both(_eight, shoulder: 36, elbow: 178, wrist: -26, lift: 0.56),
+          _both(
+            HandShape.flat,
+            shoulder: 62,
+            elbow: 198,
+            wrist: -26,
+            lift: 0.92,
+          ),
           hold: 55,
         ),
       ],
@@ -1136,11 +1178,11 @@ abstract final class SignLibrary {
       repeat: 2,
     ),
 
-    // Both arms open and then lay across the chest: HUG.
-    // LOVE presses two fists together over the heart; HUG is the reach-in of
-    // two open arms, so the elbows stay wide and the hands end up on the far
-    // shoulder. Only a nearly straight elbow with the lift dropped carries a
-    // hand past the middle of the body.
+    // Both arms open and then cross over the chest: HUG.
+    // LOVE presses two A-hands together over the heart; HUG is the reach-in of
+    // two arms that close into fists on the far shoulder, which is how the
+    // reference clip signs it. Only a nearly straight elbow with the lift
+    // dropped carries a hand past the middle of the body.
     'hug': SignAnimation(
       id: 'hug',
       gloss: 'HUG',
@@ -1151,7 +1193,7 @@ abstract final class SignLibrary {
           hold: 70,
         ),
         _k(
-          _both(HandShape.relax, shoulder: 78, elbow: 186, lift: 0.12),
+          _both(HandShape.fist, shoulder: 78, elbow: 186, lift: 0.12),
           hold: 170,
         ),
       ],
@@ -1260,20 +1302,25 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // The hand falls down the body, fingers spreading and closing: SHOWER.
-    // SLEEP's drop, but in four steps and with the fingers moving — a hand that
-    // only travels down reads as SLEEP again, and the wiggle is the water.
+    // The hand opens and closes above the head, then falls down the body:
+    // SHOWER. The reference clip starts with a clawed hand over the crown, not
+    // at the temple, and alternates it with an open one as it drops. SLEEP's
+    // single fall reads as sleep again; the changing handshape is the water.
     'shower': SignAnimation(
       id: 'shower',
       gloss: 'SHOWER',
       keys: [
-        _k(_atFace(_five, _FaceSpot.temple, wrist: -12), travel: 0, hold: 45),
+        _k(
+          _hand(HandShape.claw, shoulder: 132, elbow: 96, lift: 0.3),
+          travel: 0,
+          hold: 45,
+        ),
         _k(
           _hand(HandShape.flat, shoulder: 74, elbow: 160, lower: 8, lift: 0.45),
           hold: 45,
         ),
         _k(
-          _hand(_five, shoulder: 54, elbow: 170, lower: 16, lift: 0.5),
+          _hand(HandShape.claw, shoulder: 54, elbow: 170, lower: 16, lift: 0.5),
           hold: 45,
         ),
         _k(
@@ -1366,17 +1413,18 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // The O-hand taps the other wrist: WATCH.
-    // The non-dominant arm hangs with the thumb out so the wrist it is tapped
-    // on reads as the one wearing the watch, and the reaching hand has to cross
-    // to it, which is the whole sign.
+    // The hooked index taps the other wrist: WATCH.
+    // The reference clip holds the dominant index half-curled over the rest of
+    // the fist, which is the X hand, not the O this used to tap with. The
+    // non-dominant arm hangs with the thumb out so the wrist it is tapped on
+    // reads as the one wearing the watch.
     'watch': SignAnimation(
       id: 'watch',
       gloss: 'WATCH',
       keys: [
         _k(
           _two(
-            HandShape.o,
+            _xHand,
             FingerspellShapes.letters['a']!,
             shoulder: 26,
             elbow: 184,
@@ -1388,7 +1436,7 @@ abstract final class SignLibrary {
         ),
         _k(
           _two(
-            HandShape.o,
+            _xHand,
             FingerspellShapes.letters['a']!,
             shoulder: 22,
             elbow: 188,
@@ -1400,31 +1448,33 @@ abstract final class SignLibrary {
       ],
       repeat: 2,
     ),
-    // Both bent hands start knuckles-in and roll outward: HOW.
-    // The roll is the sign. Held still at chest height the pair is a pose, which
-    // is what the fingerspelled H-O-W used to read as.
+    // Both open hands start knuckles-in at the chest and roll outward: HOW.
+    // The reference clip starts with loosely curled hands almost touching at
+    // the centre of the chest and turns them palm-up, so the old pair, sitting
+    // out beside the shoulders with deep fist-like curls, signed the wrong
+    // shape in the wrong place. The roll is the sign.
     'how': SignAnimation(
       id: 'how',
       gloss: 'HOW',
       keys: [
         _k(
           _mirrored(
-            HandShape.bent,
-            shoulder: 30,
-            elbow: 170,
+            HandShape.relax,
+            shoulder: 48,
+            elbow: 190,
             wrist: 16,
-            lift: 0.58,
+            lift: 0.5,
           ),
           travel: 0,
           hold: 60,
         ),
         _k(
           _mirrored(
-            HandShape.bent,
-            shoulder: 46,
-            elbow: 160,
+            HandShape.relax,
+            shoulder: 56,
+            elbow: 186,
             wrist: -38,
-            lift: 0.44,
+            lift: 0.45,
           ),
           hold: 70,
         ),
@@ -1504,23 +1554,36 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // Open hand leaves the rounded mouth and travels out: WIND.
+    // Both flat hands sweep sideways in front of the chest: WIND.
+    // The reference clip holds two open palms at chest height, fingertips
+    // toward each other, and sways the pair sideways. Mirrored shoulders cannot
+    // move both hands the same way, so the pair opens and closes symmetrically
+    // instead: palms flat at the centre, then turning down as the elbows lift.
     'wind': SignAnimation(
       id: 'wind',
       gloss: 'WIND',
       keys: [
         _k(
-          _atFace(
+          _mirrored(
             HandShape.flat,
-            _FaceSpot.cheek,
+            shoulder: 92,
+            elbow: 200,
             wrist: -10,
+            lift: 0.1,
             face: const FacePose(mouth: 0.45),
           ),
           travel: 0,
           hold: 50,
         ),
         _k(
-          _hand(HandShape.flat, shoulder: 78, elbow: 148, lift: 0.14),
+          _mirrored(
+            HandShape.flat,
+            shoulder: 142,
+            elbow: 188,
+            wrist: 30,
+            lift: 0.1,
+            face: const FacePose(mouth: 0.45),
+          ),
           hold: 80,
         ),
       ],
@@ -1528,30 +1591,33 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // The idiom for a blustery day is WIND's handshape on both hands, wagging
-    // at head height: WINDY. One hand would be the noun, and a fanned hand
-    // keeps the pair apart from CLOUD's cups in the same zone.
+    // Two fanned hands flutter between the chest and the cheeks: WINDY.
+    // The reference clip raises both hands to the face and lets them drop back
+    // to the chest, so the pair travels rather than hovering above the crown.
+    // Open and spread keeps it apart from CLOUD's hands in the same zone.
     'windy': SignAnimation(
       id: 'windy',
       gloss: 'WINDY',
       keys: [
         _k(
-          _both(
+          _mirrored(
             _five,
-            shoulder: 100,
-            elbow: 112,
-            lift: 0.24,
+            shoulder: 92,
+            elbow: 200,
+            wrist: -10,
+            lift: 0.1,
             face: const FacePose(mouth: 0.5, eyes: 0.4),
           ),
           travel: 0,
           hold: 45,
         ),
         _k(
-          _both(
+          _mirrored(
             _five,
-            shoulder: 110,
-            elbow: 100,
-            lift: 0.44,
+            shoulder: 74,
+            elbow: 162,
+            wrist: 0,
+            lift: 0.5,
             face: const FacePose(mouth: 0.5, eyes: 0.4),
           ),
           hold: 55,
@@ -1561,19 +1627,23 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // Two C-hands draw in from outside the head and sit on the temples: CLOUD.
-    // STORM shakes in the same zone, so the cups and the slow press in are what
-    // keep the two apart.
+    // Two fanned 5-hands sit at the sides of the head and press in: CLOUD.
+    // The reference clip shows open spread hands in that zone, not the cups
+    // this used to hold; the fanned shape also keeps the pair apart from
+    // WINDY's flutter below it.
     'cloud': SignAnimation(
       id: 'cloud',
       gloss: 'CLOUD',
       keys: [
         _k(
-          _both(_cHand, shoulder: 126, elbow: 124, lift: 1.0),
+          _both(_five, shoulder: 126, elbow: 124, wrist: -30, lift: 1.0),
           travel: 0,
           hold: 50,
         ),
-        _k(_both(_cHand, shoulder: 140, elbow: 118, lift: 1.0), hold: 60),
+        _k(
+          _both(_five, shoulder: 140, elbow: 118, wrist: -30, lift: 1.0),
+          hold: 60,
+        ),
       ],
       repeat: 2,
       pingpong: true,
@@ -1612,24 +1682,35 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // Two fists rattle downward: THUNDER.
+    // Two index fingers rattle at the temples: THUNDER.
+    // The reference clip holds pointing hands against the sides of the head,
+    // not fists at chest height. The fingertips reaching the temples is what
+    // keeps the sign apart from COLD's shivering fists.
     'thunder': SignAnimation(
       id: 'thunder',
       gloss: 'THUNDER',
       keys: [
         _k(
-          _both(
-            HandShape.fist,
-            shoulder: 96,
-            elbow: 116,
-            lift: 0.36,
+          _mirrored(
+            HandShape.point,
+            shoulder: 118,
+            elbow: 142,
+            wrist: -74,
+            lift: 0.5,
             face: const FacePose(brow: 0.8, eyes: 0.6),
           ),
           travel: 0,
           hold: 40,
         ),
         _k(
-          _both(HandShape.fist, shoulder: 72, elbow: 148, lift: 0.28),
+          _mirrored(
+            HandShape.point,
+            shoulder: 114,
+            elbow: 146,
+            wrist: -64,
+            lift: 0.44,
+            face: const FacePose(brow: 0.8, eyes: 0.6),
+          ),
           hold: 60,
         ),
       ],
@@ -1779,9 +1860,10 @@ abstract final class SignLibrary {
       pingpong: true,
     ),
 
-    // The O-hand opens and sweeps a wide circle above the crown, then closes:
-    // SUN. WEATHER keeps a steady pointer at the forehead and LIGHTNING drops
-    // to the chest, so the raised arc plus the shape change is what reads here.
+    // The O-hand opens into a spread 5 and arcs down past the temple, then
+    // closes: SUN. The reference clip opens the hand and travels it; the old
+    // keyframes changed shape in place. WEATHER keeps a steady pointer at the
+    // forehead and LIGHTNING drops to the chest, so the arc is what reads here.
     'sun': SignAnimation(
       id: 'sun',
       gloss: 'SUN',
@@ -1792,7 +1874,7 @@ abstract final class SignLibrary {
           hold: 50,
         ),
         _k(
-          _hand(HandShape.point, shoulder: 122, elbow: 90, lift: 0.56),
+          _hand(_five, shoulder: 120, elbow: 130, wrist: -20, lift: 0.4),
           hold: 55,
         ),
         _k(_hand(HandShape.o, shoulder: 118, elbow: 96, lift: 0.3), hold: 50),
@@ -1800,17 +1882,6 @@ abstract final class SignLibrary {
       repeat: 2,
     ),
   };
-
-  /// Thumb, index and middle out, ring and pinky into the palm: the 8 hand that
-  /// ENJOY rubs in a circle on the chest with.
-  static const _eight = HandShape(
-    index: 0,
-    middle: 0,
-    ring: 1,
-    pinky: 1,
-    thumb: 1,
-    thumbSpread: 0.9,
-  );
 
   /// Three fingers extended and held apart with the thumb: the V that VISION
   /// points at the eye with. U is the same two fingers kept together.
@@ -1855,19 +1926,8 @@ abstract final class SignLibrary {
     spread: 0.8,
   );
 
-  /// Every finger bent past half with the thumb curved to meet it: the hollow C
-  /// hand. Bent to half it still reads as an open hand at card size, which is
-  /// how CLOUD got confused with WINDY.
-  static const _cHand = HandShape(
-    index: 0.62,
-    middle: 0.62,
-    ring: 0.62,
-    pinky: 0.62,
-    thumb: 0.6,
-    thumbSpread: 0.3,
-  );
-
-  /// The index hooked over its own knuckle, the rest folded: the X hand.
+  /// The index hooked over its own knuckle, the rest folded: the X hand that
+  /// WATCH taps with and HOT holds at the mouth.
   static const _xHand = HandShape(
     index: 0.7,
     middle: 1,

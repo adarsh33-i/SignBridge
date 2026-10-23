@@ -36,54 +36,54 @@ void main() {
   ];
 
   const authored = [
-      'hello',
-      'me',
-      'you',
-      'thank_you',
-      'please',
-      'yes',
-      'no',
-      'good',
-      'bad',
-      'sorry',
-      'help',
-      'mother',
-      'father',
-      'eat',
-      'water',
-      'home',
-      'name',
-      'where',
-      'how',
-      'today',
-      'go',
-      'come',
-      'see',
-      'know',
-      'love',
-      'work',
-      'sleep',
-      'want',
-      'need',
-      'buy',
-      'money',
-      'doctor',
-      'school',
-      'friend',
-      'rain',
-      'snow',
-      'wind',
-      'windy',
-      'cloud',
-      'storm',
-      'thunder',
-      'lightning',
-      'fog',
-      'weather',
-      'cold',
-      'hot',
-      'sun',
-    ];
+    'hello',
+    'me',
+    'you',
+    'thank_you',
+    'please',
+    'yes',
+    'no',
+    'good',
+    'bad',
+    'sorry',
+    'help',
+    'mother',
+    'father',
+    'eat',
+    'water',
+    'home',
+    'name',
+    'where',
+    'how',
+    'today',
+    'go',
+    'come',
+    'see',
+    'know',
+    'love',
+    'work',
+    'sleep',
+    'want',
+    'need',
+    'buy',
+    'money',
+    'doctor',
+    'school',
+    'friend',
+    'rain',
+    'snow',
+    'wind',
+    'windy',
+    'cloud',
+    'storm',
+    'thunder',
+    'lightning',
+    'fog',
+    'weather',
+    'cold',
+    'hot',
+    'sun',
+  ];
 
   group('authored core', () {
     for (final id in [...authored, ...everyday]) {
@@ -126,14 +126,27 @@ void main() {
     // The report that started this: a live caption played with one hand doing
     // everything. Some signs are one-handed by nature; these four are not.
     test('the two-handed vocabulary moves both arms', () {
-      for (final id in ['rain', 'snow', 'how', 'today']) {
+      for (final id in [
+        'rain',
+        'snow',
+        'how',
+        'today',
+        'go',
+        'wind',
+        'windy',
+        'cloud',
+        'thunder',
+        'enjoy',
+        'hug',
+      ]) {
         final animation = SignLibrary.forToken(token(id))!;
         double span(ArmPose Function(PoseKey) armOf) {
           final first = armOf(animation.frames.first);
           var peak = 0.0;
           for (final frame in animation.frames.skip(1)) {
             final pose = armOf(frame);
-            final travel = (pose.shoulder - first.shoulder).abs() +
+            final travel =
+                (pose.shoulder - first.shoulder).abs() +
                 (pose.elbow - first.elbow).abs() +
                 (pose.wrist - first.wrist).abs();
             if (travel > peak) peak = travel;
@@ -304,16 +317,15 @@ void main() {
       test('$id animates the face, not the hands', () {
         final animation = SignLibrary.forToken(token(id));
         expect(animation, isNotNull);
-        final end = animation!.poseAt(Duration(milliseconds: animation.totalMs));
+        final end = animation!.poseAt(
+          Duration(milliseconds: animation.totalMs),
+        );
         expect(
           end.left.shoulder,
           ArmPose.resting.shoulder,
           reason: '$id should leave the hands at rest',
         );
-        expect(
-          end.right.shoulder,
-          ArmPose.resting.shoulder,
-        );
+        expect(end.right.shoulder, ArmPose.resting.shoulder);
       });
     }
 
@@ -328,7 +340,10 @@ void main() {
       // hand-built above. A spelling drift here once shipped questions as
       // fingerspelled "[WH-Q]" instead of a face cue.
       for (final markerId in AslNmmMarkers.allMarkers) {
-        final production = AslNmmMarkers.token(markerId, SignLanguageSystem.asl);
+        final production = AslNmmMarkers.token(
+          markerId,
+          SignLanguageSystem.asl,
+        );
         expect(
           SignLibrary.forToken(production),
           isNotNull,
@@ -344,7 +359,10 @@ void main() {
         IslNmmMarkers.th,
         IslNmmMarkers.cs,
       ]) {
-        final production = IslNmmMarkers.token(markerId, SignLanguageSystem.isl);
+        final production = IslNmmMarkers.token(
+          markerId,
+          SignLanguageSystem.isl,
+        );
         expect(
           SignLibrary.forToken(production),
           isNotNull,
@@ -357,13 +375,10 @@ void main() {
       final animation = SignLibrary.forToken(token('nmm_headshake'))!;
       final turns = [0.1, 0.3, 0.5, 0.7, 0.9]
           .map(
-            (f) =>
-                animation
-                    .poseAt(
-                      Duration(milliseconds: (animation.totalMs * f).round()),
-                    )
-                    .face
-                    .headTurn,
+            (f) => animation
+                .poseAt(Duration(milliseconds: (animation.totalMs * f).round()))
+                .face
+                .headTurn,
           )
           .toList();
       expect(turns.any((t) => t < 0), isTrue, reason: '$turns');
@@ -478,12 +493,10 @@ void main() {
       'sleep': 0,
       'vision': 0,
       'blow': 0,
-      'wind': 0,
       'rain': 0,
       'snow': 0,
       'weather': 0,
       'hot': 0,
-      'shower': 0,
       'consume': 1,
     };
 
@@ -536,6 +549,99 @@ void main() {
           greaterThan(palm),
           reason: '$id overlaps its own two hands across the face',
         );
+      }
+    });
+  });
+
+  // The landmark audit changed these signs where the corpus disagreed with the
+  // drawing. Each assertion pins the evidence, so a later edit has to argue
+  // with the corpus rather than quietly slide back.
+  group('corpus audit', () {
+    SignPose first(String id) =>
+        SignLibrary.forToken(token(id))!.frames.first.pose;
+
+    test('mirrored pairs carry the same hand and wrist on both sides', () {
+      for (final id in ['go', 'wind', 'windy', 'thunder']) {
+        final pose = first(id);
+        expect(pose.left.hand, same(pose.right.hand), reason: id);
+        expect(
+          pose.left.wrist,
+          pose.right.wrist,
+          reason: '$id is not mirrored',
+        );
+      }
+    });
+
+    test('GO points with index hands, not flat ones', () {
+      final pose = first('go');
+      for (final arm in [pose.left, pose.right]) {
+        expect(arm.hand.index, 0);
+        expect(arm.hand.middle, 1);
+      }
+    });
+
+    test('WIND keeps flat palms while WINDY and CLOUD fan their fingers', () {
+      final wind = first('wind');
+      for (final arm in [wind.left, wind.right]) {
+        expect(arm.hand, same(HandShape.flat));
+      }
+      for (final id in ['windy', 'cloud']) {
+        final pose = first(id);
+        for (final arm in [pose.left, pose.right]) {
+          expect(arm.hand.index, 0, reason: id);
+          expect(arm.hand.spread, greaterThan(0.5), reason: id);
+        }
+      }
+    });
+
+    test('KNOW holds a flat hand at the brow, not a pointing hand', () {
+      expect(first('know').right.hand, same(HandShape.flat));
+    });
+
+    test('THUNDER puts index hands at the temples under a furrowed brow', () {
+      final pose = first('thunder');
+      for (final arm in [pose.left, pose.right]) {
+        expect(arm.hand.index, 0);
+        expect(arm.hand.middle, 1);
+      }
+      expect(pose.face.brow, greaterThan(0.5));
+    });
+
+    test('the corrected shapes stay corrected', () {
+      final no = SignLibrary.forToken(token('no'))!;
+      expect(no.frames.first.pose.right.hand.middle, 0);
+      expect(no.frames.last.pose.right.hand, same(HandShape.fist));
+
+      for (final key in SignLibrary.forToken(token('how'))!.frames) {
+        expect(key.pose.right.hand, same(HandShape.relax));
+      }
+
+      final watch = first('watch');
+      expect(watch.right.hand.index, greaterThan(0.5));
+      expect(watch.right.hand.middle, 1);
+
+      expect(first('shower').right.hand, same(HandShape.claw));
+      expect(
+        SignLibrary.forToken(token('hug'))!.frames.last.pose.right.hand,
+        same(HandShape.fist),
+      );
+
+      final sun = SignLibrary.forToken(token('sun'))!.frames;
+      expect(sun.first.pose.right.hand, same(HandShape.o));
+      expect(sun[1].pose.right.hand.index, 0);
+      expect(sun[1].pose.right.hand.spread, greaterThan(0.5));
+      expect(sun.last.pose.right.hand, same(HandShape.o));
+    });
+
+    test('the flapping pairs carry the far wrist against the near', () {
+      for (final id in ['enjoy', 'hug', 'cloud']) {
+        for (final key in SignLibrary.forToken(token(id))!.frames) {
+          expect(key.pose.left.wrist, -key.pose.right.wrist, reason: id);
+        }
+      }
+      for (final key in SignLibrary.forToken(token('enjoy'))!.frames) {
+        expect(key.pose.left.hand, same(HandShape.flat));
+        expect(key.pose.right.hand, same(HandShape.flat));
       }
     });
   });
