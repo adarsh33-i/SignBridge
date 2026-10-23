@@ -8,6 +8,13 @@ import '../../../../services/home/home_service.dart';
 import '../../../../services/translate/translate_service.dart';
 import 'sign_avatar_view.dart';
 
+/// Whether a gloss string is something the chip can actually name.
+///
+/// The rig reports null once a caption has settled at rest, and the transcript
+/// service hands over empty strings between words, so every stage asks this
+/// before deciding which gloss to show.
+bool _hasWord(String? word) => word != null && word.trim().isNotEmpty;
+
 class TalkListeningContent extends StatelessWidget {
   const TalkListeningContent({
     super.key,
@@ -15,24 +22,32 @@ class TalkListeningContent extends StatelessWidget {
     this.liveResult,
     this.signPulse = 0,
     this.isRefreshingGloss = false,
-    this.cloudGlossWord,
-    this.generatedSignVideoUrl,
-    this.veoOnly = false,
+    this.glossWord,
+    this.activeGlossWord,
+    this.onGlossChanged,
   });
 
   final HomeUiCopy uiCopy;
   final TalkListenResult? liveResult;
   final int signPulse;
   final bool isRefreshingGloss;
-  final String? cloudGlossWord;
-  final String? generatedSignVideoUrl;
-  final bool veoOnly;
+  final String? glossWord;
+
+  /// The gloss the hands are on right now, reported by the rig itself.
+  final String? activeGlossWord;
+  final ValueChanged<String?>? onGlossChanged;
 
   bool get _hasCaption => liveResult?.fullTranscript.isNotEmpty ?? false;
 
   String? get _chipWord {
-    if (cloudGlossWord != null && cloudGlossWord!.trim().isNotEmpty) {
-      return cloudGlossWord;
+    // While a sign is playing the chip names that sign, so the word and the
+    // movement are the same moment. It only falls back to the whole gloss
+    // string before the rig starts or after it has settled at rest.
+    if (_hasWord(activeGlossWord)) {
+      return activeGlossWord;
+    }
+    if (_hasWord(glossWord)) {
+      return glossWord;
     }
     if (isRefreshingGloss || _hasCaption) {
       return uiCopy.signingListeningWord;
@@ -40,25 +55,24 @@ class TalkListeningContent extends StatelessWidget {
     return null;
   }
 
-  bool get _hasCloudGloss =>
-      cloudGlossWord != null && cloudGlossWord!.trim().isNotEmpty;
+  bool get _hasGloss => _hasWord(glossWord);
 
   String get _avatarSignTokenId {
-    if (!_hasCloudGloss) {
+    if (!_hasGloss) {
       return SignTokenIds.thinking;
     }
     return liveResult?.signTokenId ?? SignTokenIds.thinking;
   }
 
   String get _avatarSigningWord {
-    if (!_hasCloudGloss) {
+    if (!_hasGloss) {
       return _hasCaption ? uiCopy.signingListeningWord : '';
     }
-    return cloudGlossWord!;
+    return glossWord!;
   }
 
   List<SignToken> get _avatarSignSequence {
-    if (!_hasCloudGloss) {
+    if (!_hasGloss) {
       return const [];
     }
     return liveResult?.signSequence ?? const [];
@@ -93,12 +107,11 @@ class TalkListeningContent extends StatelessWidget {
         signingWord: _avatarSigningWord,
         signSequence: _avatarSignSequence,
         signPulse: signPulse,
-        generatedVideoUrl: generatedSignVideoUrl,
-        veoOnly: veoOnly,
+        onGlossChanged: onGlossChanged,
         signingChip: _OverlaySigningChip(
           prefix: uiCopy.signingPrefix,
           word: _chipWord,
-          systemLabel: cloudGlossWord != null
+          systemLabel: glossWord != null
               ? liveResult?.signSystem.label
               : null,
           showLoader: isRefreshingGloss,
@@ -114,11 +127,19 @@ class TalkHeardContent extends StatelessWidget {
     required this.uiCopy,
     required this.result,
     this.signPulse = 0,
+    this.activeGlossWord,
+    this.onGlossChanged,
   });
 
   final HomeUiCopy uiCopy;
   final TalkListenResult result;
   final int signPulse;
+  final String? activeGlossWord;
+  final ValueChanged<String?>? onGlossChanged;
+
+  String? get _chipWord => _hasWord(activeGlossWord)
+      ? activeGlossWord
+      : result.signingWord;
 
   @override
   Widget build(BuildContext context) {
@@ -132,9 +153,10 @@ class TalkHeardContent extends StatelessWidget {
         signingWord: result.signingWord,
         signSequence: result.signSequence,
         signPulse: signPulse,
+        onGlossChanged: onGlossChanged,
         signingChip: _OverlaySigningChip(
           prefix: uiCopy.signingPrefix,
-          word: result.signingWord,
+          word: _chipWord,
           systemLabel: result.signSystem.label,
         ),
       ),
@@ -148,11 +170,19 @@ class TalkSigningContent extends StatelessWidget {
     required this.uiCopy,
     required this.result,
     this.signPulse = 0,
+    this.activeGlossWord,
+    this.onGlossChanged,
   });
 
   final HomeUiCopy uiCopy;
   final TalkListenResult result;
   final int signPulse;
+  final String? activeGlossWord;
+  final ValueChanged<String?>? onGlossChanged;
+
+  String? get _chipWord => _hasWord(activeGlossWord)
+      ? activeGlossWord
+      : result.signingWord;
 
   @override
   Widget build(BuildContext context) {
@@ -169,9 +199,10 @@ class TalkSigningContent extends StatelessWidget {
         signingWord: result.signingWord,
         signSequence: result.signSequence,
         signPulse: signPulse,
+        onGlossChanged: onGlossChanged,
         signingChip: _OverlaySigningChip(
           prefix: uiCopy.signingPrefix,
-          word: result.signingWord,
+          word: _chipWord,
           systemLabel: result.signSystem.label,
         ),
       ),
@@ -186,22 +217,25 @@ class TalkStoppedContent extends StatelessWidget {
     required this.result,
     this.signPulse = 0,
     this.isRefreshingGloss = false,
-    this.cloudGlossWord,
-    this.generatedSignVideoUrl,
-    this.veoOnly = false,
+    this.glossWord,
+    this.activeGlossWord,
+    this.onGlossChanged,
   });
 
   final HomeUiCopy uiCopy;
   final TalkListenResult result;
   final int signPulse;
   final bool isRefreshingGloss;
-  final String? cloudGlossWord;
-  final String? generatedSignVideoUrl;
-  final bool veoOnly;
+  final String? glossWord;
+  final String? activeGlossWord;
+  final ValueChanged<String?>? onGlossChanged;
 
   String? get _chipWord {
-    if (cloudGlossWord != null && cloudGlossWord!.trim().isNotEmpty) {
-      return cloudGlossWord;
+    if (_hasWord(activeGlossWord)) {
+      return activeGlossWord;
+    }
+    if (_hasWord(glossWord)) {
+      return glossWord;
     }
     if (isRefreshingGloss || result.hasTranscript) {
       return uiCopy.signingListeningWord;
@@ -209,25 +243,24 @@ class TalkStoppedContent extends StatelessWidget {
     return null;
   }
 
-  bool get _hasCloudGloss =>
-      cloudGlossWord != null && cloudGlossWord!.trim().isNotEmpty;
+  bool get _hasGloss => _hasWord(glossWord);
 
   String get _avatarSigningWord {
-    if (_hasCloudGloss) {
-      return cloudGlossWord!;
+    if (_hasGloss) {
+      return glossWord!;
     }
     return result.hasTranscript ? uiCopy.signingListeningWord : '';
   }
 
   String get _avatarSignTokenId {
-    if (_hasCloudGloss) {
+    if (_hasGloss) {
       return result.signTokenId;
     }
     return SignTokenIds.thinking;
   }
 
   List<SignToken> get _avatarSignSequence {
-    if (!_hasCloudGloss) {
+    if (!_hasGloss) {
       return const [];
     }
     return result.signSequence;
@@ -252,12 +285,11 @@ class TalkStoppedContent extends StatelessWidget {
         signingWord: _avatarSigningWord,
         signSequence: _avatarSignSequence,
         signPulse: signPulse,
-        generatedVideoUrl: generatedSignVideoUrl,
-        veoOnly: veoOnly,
+        onGlossChanged: onGlossChanged,
         signingChip: _OverlaySigningChip(
           prefix: uiCopy.signingPrefix,
           word: _chipWord,
-          systemLabel: cloudGlossWord != null ? result.signSystem.label : null,
+          systemLabel: glossWord != null ? result.signSystem.label : null,
           showLoader: isRefreshingGloss,
         ),
       ),
@@ -455,8 +487,7 @@ class _TalkAvatarCardStage extends StatelessWidget {
     this.signSequence = const [],
     required this.signPulse,
     required this.signingChip,
-    this.generatedVideoUrl,
-    this.veoOnly = false,
+    this.onGlossChanged,
   });
 
   final double height;
@@ -467,8 +498,7 @@ class _TalkAvatarCardStage extends StatelessWidget {
   final List<SignToken> signSequence;
   final int signPulse;
   final Widget signingChip;
-  final String? generatedVideoUrl;
-  final bool veoOnly;
+  final ValueChanged<String?>? onGlossChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -512,8 +542,7 @@ class _TalkAvatarCardStage extends StatelessWidget {
                     signingWord: signingWord,
                     signSequence: signSequence,
                     signPulse: signPulse,
-                    generatedVideoUrl: generatedVideoUrl,
-                    veoOnly: veoOnly,
+                    onGlossChanged: onGlossChanged,
                   ),
                 ),
               ),

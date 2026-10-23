@@ -8,6 +8,7 @@ import 'package:sign_bridge/services/translate/sign_token.dart';
 
 import 'asl_sign_overlay.dart';
 import 'sign_video_avatar_view.dart';
+import 'vector_sign_avatar.dart';
 
 /// Renders the signing avatar with Hugging Face signer videos when available.
 class SignAvatarView extends StatelessWidget {
@@ -20,8 +21,7 @@ class SignAvatarView extends StatelessWidget {
     this.signSequence = const [],
     this.signPulse = 0,
     this.showNative = true,
-    this.generatedVideoUrl,
-    this.veoOnly = false,
+    this.onGlossChanged,
   });
 
   final String signTokenId;
@@ -31,8 +31,9 @@ class SignAvatarView extends StatelessWidget {
   final List<SignToken> signSequence;
   final int signPulse;
   final bool showNative;
-  final String? generatedVideoUrl;
-  final bool veoOnly;
+
+  /// Forwarded to the rig so the gloss chip can follow the hands.
+  final ValueChanged<String?>? onGlossChanged;
 
   static bool get _isFlutterTest =>
       Platform.environment.containsKey('FLUTTER_TEST');
@@ -61,6 +62,15 @@ class SignAvatarView extends StatelessWidget {
   }
 
   Widget _buildFallback() {
+    final sequence = _sequenceOrSingleToken;
+    if (sequence.isNotEmpty) {
+      // The rig draws the movement itself, so it replaces the illustration
+      // whenever there is something to sign.
+      return VectorSignAvatar(
+        sequence: sequence,
+        onGlossChanged: onGlossChanged,
+      );
+    }
     return Stack(
       fit: StackFit.expand,
       alignment: Alignment.bottomCenter,
@@ -81,15 +91,23 @@ class SignAvatarView extends StatelessWidget {
     );
   }
 
+  List<SignToken> get _sequenceOrSingleToken {
+    if (signSequence.isNotEmpty) return signSequence;
+    if (signTokenId == SignTokenIds.thinking || signTokenId.isEmpty) {
+      return const [];
+    }
+    return [
+      SignToken(id: signTokenId, gloss: signingWord, system: signSystem),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (!SignPlaybackConfig.imagesOnly && (veoOnly || _useSignerVideo)) {
+    if (_useSignerVideo) {
       return SignVideoAvatarView(
         signSystem: signSystem,
-        signSequence: veoOnly ? const [] : signSequence,
+        signSequence: signSequence,
         pulse: signPulse,
-        generatedVideoUrl: generatedVideoUrl,
-        veoOnly: veoOnly,
         fallback: _buildFallback(),
       );
     }

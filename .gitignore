@@ -65,3 +65,15 @@ node_modules/
 /assets/signs/**/*.mp4
 /asl/
 /isl/
+
+# Gloss student model corpus / checkpoints (regenerate with test/tools)
+/training/data/
+/training/runs/
+/training/export/
+
+# Video signer model: downloaded clips, extracted tracks, checkpoints and the
+# free MediaPipe models. All regenerate with training/video/build_corpus.sh.
+/training/video/data/
+/training/video/runs/
+/training/video/models/
+**/__pycache__/

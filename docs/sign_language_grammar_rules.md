@@ -223,8 +223,13 @@ flutter test test/services/asl_spec_compliance_test.dart \
 
 ---
 
-## Cloud gloss (optional)
+## Gloss is on-device only
 
-When online, the app can send a completed caption to the Cloudflare gloss Worker (Gemini) via the send button on the stopped-session caption bubble. On-device rules above still drive live listening; cloud gloss replaces the chip after explicit user send.
+Every gloss the app shows comes from the rules above. There is no cloud gloss
+worker, no model call, and no network request anywhere between the caption and
+the avatar, so the same sentence produces the same gloss with the device in
+airplane mode.
 
-See `workers/gloss/index.js` and `lib/services/gloss/cloudflare_gloss_service.dart`.
+The app used to offer an optional hosted Gemini gloss worker and to prefer its
+answer when the gloss mapped to a signer clip. Both were removed; `LocalGlossService`
+is the only `GlossService` the locator builds.

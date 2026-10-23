@@ -8,6 +8,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 import 'audio_level_normalizer.dart';
 import 'sign_gloss_mapper.dart';
+import 'sign_token.dart';
 import 'speech_error_mapper.dart';
 import 'speech_locale_resolver.dart';
 import 'speech_transcript_accumulator.dart';
@@ -734,7 +735,7 @@ final class LocalTranslateService implements TranslateService {
     final active = SignGlossMapper.activeSign(glossSource, _languageCode);
     final sequence = isFinal
         ? SignGlossMapper.signSequence(glossSource, _languageCode)
-        : (_latestUpdate?.signSequence ?? const []);
+        : _liveSequence(glossSource);
     final update = TalkListenUpdate(
       transcript: SignGlossMapper.liveCaption(text),
       fullTranscript: text.trim(),
@@ -760,6 +761,30 @@ final class LocalTranslateService implements TranslateService {
         '[SignBridge/STT] caption ${isFinal ? 'final' : 'partial'}: $preview',
       );
     }
+  }
+
+  /// The sign sequence for a partial transcript while the speaker is talking.
+  ///
+  /// The gloss grammar reorders as it learns the sentence — time words and
+  /// objects move to the front ("...today" becomes TODAY first), so recomputing
+  /// the sequence on every partial made the avatar restart from its first sign
+  /// each time a word arrived, and reusing the previous partial's sequence left
+  /// it empty (a single active word) for the whole dictation. During live
+  /// speech the run may only append: keep what has already been shown and add
+  /// the words the grammar has just introduced, in the order they arrived. The
+  /// full reordered sentence is played in the signing phase from [_buildResult].
+  List<SignToken> _liveSequence(String glossSource) {
+    final fresh = SignGlossMapper.signSequence(glossSource, _languageCode);
+    final previous = _latestUpdate?.signSequence ?? const <SignToken>[];
+    if (previous.isEmpty) return fresh;
+    final seen = {
+      for (final token in previous) '${token.id}|${token.gloss}',
+    };
+    return [
+      ...previous,
+      for (final token in fresh)
+        if (!seen.contains('${token.id}|${token.gloss}')) token,
+    ];
   }
 
   TalkListenResult _buildResult({required Duration elapsed}) {

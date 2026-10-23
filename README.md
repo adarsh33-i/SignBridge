@@ -127,6 +127,8 @@ lib/
 
 5. **Empty-stop semantics** — Stopping before speech returns `TalkListenResult.empty`, not demo sample text.
 
+6. **On-device sign recognition** — the sign camera reads skin-colour and motion features off live frames and names five signs (HELLO, YES, NO, STOP, PLEASE) with hand-written rules. It refuses rather than inventing text, and any clip it cannot name can be saved, labeled, into a training corpus. No model call, no upload. See [docs/sign_video_recognition.md](docs/sign_video_recognition.md).
+
 ## Getting started
 
 ### Prerequisites

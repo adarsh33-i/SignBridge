@@ -1,7 +1,5 @@
 import '../../services/home/home_service.dart';
 import '../../services/home/local_home_service.dart';
-import '../../services/gloss/cloudflare_gloss_config.dart';
-import '../../services/gloss/cloudflare_gloss_service.dart';
 import '../../services/gloss/gloss_service.dart';
 import '../../services/gloss/local_gloss_service.dart';
 import '../../services/phrases/local_phrase_speech_service.dart';
@@ -13,8 +11,6 @@ import '../../services/sos/sos_service.dart';
 import '../../services/sos/local_sos_service.dart';
 import '../../services/splash/splash_service.dart';
 import '../../services/splash/local_splash_service.dart';
-import '../../services/translate/cloudflare_sign_config.dart';
-import '../../services/translate/cloudflare_sign_capture_service.dart';
 import '../../services/translate/local_sign_capture_service.dart';
 import '../../services/translate/local_translate_service.dart';
 import '../../services/translate/sign_capture_service.dart';
@@ -28,7 +24,6 @@ final class ServiceLocator {
     required this.translate,
     required this.signCapture,
     required this.gloss,
-    required this.localGloss,
     required this.phrases,
     required this.phraseSpeech,
     required this.sos,
@@ -43,7 +38,6 @@ final class ServiceLocator {
   final TranslateService translate;
   final SignCaptureService signCapture;
   final GlossService gloss;
-  final GlossService localGloss;
   final PhrasesService phrases;
   final PhraseSpeechService phraseSpeech;
   final SosService sos;
@@ -53,7 +47,6 @@ final class ServiceLocator {
     TranslateService? translate,
     SignCaptureService? signCapture,
     GlossService? gloss,
-    GlossService? localGloss,
     PhraseSpeechService? phraseSpeech,
     SosService? sos,
   }) {
@@ -67,9 +60,8 @@ final class ServiceLocator {
       splash: LocalSplashService(),
       home: LocalHomeService(),
       translate: translateService,
-      signCapture: signCapture ?? _defaultSignCaptureService(),
-      gloss: gloss ?? _defaultGlossService(),
-      localGloss: localGloss ?? LocalGlossService(),
+      signCapture: signCapture ?? LocalSignCaptureService(),
+      gloss: gloss ?? LocalGlossService(),
       phrases: LocalPhrasesService(),
       phraseSpeech: speechService,
       sos: sos ?? LocalSosService(phraseSpeech: speechService),
@@ -77,17 +69,4 @@ final class ServiceLocator {
     );
   }
 
-  static GlossService _defaultGlossService() {
-    if (CloudflareGlossConfig.isConfigured) {
-      return CloudflareGlossService();
-    }
-    return LocalGlossService();
-  }
-
-  static SignCaptureService _defaultSignCaptureService() {
-    if (CloudflareSignConfig.isConfigured) {
-      return CloudflareSignCaptureService();
-    }
-    return LocalSignCaptureService();
-  }
 }

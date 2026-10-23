@@ -25,11 +25,24 @@ abstract final class IslNmmMarkers {
 
   static bool isMarker(String word) => word.startsWith('nmm:');
 
+  /// Same id contract as `AslNmmMarkers._ids` — the avatar library switches
+  /// on these exact strings. See that class for why this is a fixed map.
+  static const _ids = {
+    whQ: 'nmm_whQ',
+    ynQ: 'nmm_ynQ',
+    rhQ: 'nmm_rhQ',
+    headshake: 'nmm_headshake',
+    mm: 'nmm_mm',
+    cha: 'nmm_cha',
+    th: 'nmm_th',
+    cs: 'nmm_cs',
+  };
+
   static SignToken token(String markerId, SignLanguageSystem system) {
     final gloss =
         _glossLabels[markerId] ?? '[${markerId.replaceFirst('nmm:', '')}]';
     return SignToken(
-      id: markerId.replaceAll(':', '_'),
+      id: _ids[markerId] ?? markerId.replaceAll(':', '_'),
       gloss: gloss,
       system: system,
     );

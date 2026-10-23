@@ -229,7 +229,6 @@ abstract final class SignGrammarEngine {
     bool isWhQuestion = false,
     bool isYesNoQuestion = false,
     bool clauseIsQuestion = false,
-    bool skipValidation = false,
   }) {
     final expanded = system == SignLanguageSystem.isl
         ? _expandIslContractions(words)
@@ -452,9 +451,9 @@ abstract final class SignGrammarEngine {
         isYesNoQuestion: isYesNoQuestion,
       );
       result = _dropStrayIxAfterIf(result);
-      if (!skipValidation && !followsAslWordOrder(result)) {
-        return const [];
-      }
+      // Never-empty guarantee: a clause that misses every accepted ASL
+      // pattern still carries content words, so emit best-effort output
+      // instead of collapsing to an empty gloss the avatar cannot play.
       return result;
     }
 
@@ -1386,6 +1385,9 @@ abstract final class SignGrammarEngine {
     }
     final agent = words.sublist(0, verbIdx);
     final verb = words[verbIdx];
+    // Object of the verb sits between it and the possessive topic
+    // (I need to [buy medicine] for my mother) — keep it in the comment.
+    final middle = words.sublist(verbIdx + 1, myIdx);
     final afterVerb = words.sublist(myIdx);
     final threeTimesIdx = afterVerb.indexOf('three');
     if (threeTimesIdx >= 0 &&
@@ -1393,7 +1395,7 @@ abstract final class SignGrammarEngine {
         (afterVerb[threeTimesIdx + 1] == 'time' ||
             afterVerb[threeTimesIdx + 1] == 'times')) {
       final topic = afterVerb.sublist(0, threeTimesIdx);
-      return [...topic, 'three-times', ...agent, verb];
+      return [...topic, 'three-times', ...agent, verb, ...middle];
     }
     final trailingTimeIdx = afterVerb.indexWhere(_isTimeWord);
     if (trailingTimeIdx > 2) {
@@ -1412,6 +1414,7 @@ abstract final class SignGrammarEngine {
           'three-times',
           ...agent,
           verb,
+          ...middle,
         ];
       }
       if (timePart.length >= 2 &&
@@ -1419,9 +1422,9 @@ abstract final class SignGrammarEngine {
           timePart[1] == 'time') {
         timePart = ['three-times'];
       }
-      return [...topic, ...agent, verb, ...timePart];
+      return [...topic, ...agent, verb, ...middle, ...timePart];
     }
-    return [...afterVerb, ...agent, verb];
+    return [...afterVerb, ...agent, verb, ...middle];
   }
 
   /// Location-first OSV: CAROUSEL / MY SUITCASE / ME FIND NOT.

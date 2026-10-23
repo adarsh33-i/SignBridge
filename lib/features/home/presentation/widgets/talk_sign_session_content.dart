@@ -7,6 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../services/home/home_service.dart';
 import '../../../../services/translate/sign_capture_result.dart';
 import '../../../../services/translate/talk_listen_result.dart';
+import '../../../../services/vision/sign_gesture_session.dart';
 import 'sign_camera_recorder.dart';
 import 'talk_session_content.dart';
 
@@ -15,6 +16,7 @@ class TalkSignRecordingContent extends StatefulWidget {
     super.key,
     required this.uiCopy,
     this.heardResult,
+    this.gestureSession,
     required this.isRecording,
     this.statusLabel,
     this.canStartRecording = false,
@@ -25,6 +27,10 @@ class TalkSignRecordingContent extends StatefulWidget {
 
   final HomeUiCopy uiCopy;
   final TalkListenResult? heardResult;
+
+  /// Hand frames collected while the clip records, owned by the caller so it
+  /// can read them after the recorder is gone.
+  final SignGestureSession? gestureSession;
   final bool isRecording;
   final String? statusLabel;
   final bool canStartRecording;
@@ -108,6 +114,7 @@ class _TalkSignRecordingContentState extends State<TalkSignRecordingContent> {
                               : null,
                           child: SignCameraRecorder(
                             controller: _cameraController,
+                            gestureSession: widget.gestureSession,
                             isRecording: widget.isRecording,
                             onRecordingStopped: widget.onRecordingStopped,
                             onError: widget.onCameraError,

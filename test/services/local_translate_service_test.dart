@@ -76,6 +76,47 @@ void main() {
       expect(update.signSequence.map((t) => t.gloss), isNotEmpty);
     });
 
+    test('partial updates carry the whole phrase as an append-only sequence',
+        () async {
+      // Live dictation used to hand the avatar the previous partial's
+      // sequence — empty for the entire session — so the rig fell back to
+      // signing the single active word over and over: one hand, one sign,
+      // while the caption grew. The mock transcript also reorders (TODAY
+      // fronts as soon as it is heard), so the live sequence must keep what
+      // was already shown and append only the words that are new.
+      final service = LocalTranslateService(forceMockListening: true);
+      await service.prepareListening('ENG');
+
+      final updates = <TalkListenUpdate>[];
+      final sub = service.listenUpdates().listen(updates.add);
+      await service.activateListening();
+      await Future<void>.delayed(const Duration(milliseconds: 3000));
+      await sub.cancel();
+
+      final partials = updates.where((u) => !u.isFinal).toList();
+      expect(partials.length, greaterThan(2));
+      expect(
+        partials.last.signSequence,
+        isNotEmpty,
+        reason: 'dictation must sign the phrase, not a single token',
+      );
+      var previous = <String>[];
+      for (final update in partials) {
+        final ids = update.signSequence.map((t) => t.id).toList();
+        expect(
+          ids.take(previous.length),
+          previous,
+          reason: 'a partial must never rewind or reorder what was shown',
+        );
+        previous = ids;
+      }
+      expect(
+        partials.last.signSequence.length,
+        greaterThan(1),
+        reason: 'by the end of the mock phrase the avatar has words to sign',
+      );
+    });
+
     test('mock session emits audio level updates while listening', () async {
       final service = LocalTranslateService(forceMockListening: true);
       await service.startListening('ENG');

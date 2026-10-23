@@ -17,18 +17,12 @@ class SignVideoAvatarView extends StatefulWidget {
     required this.signSequence,
     required this.fallback,
     this.pulse = 0,
-    this.generatedVideoUrl,
-    this.veoOnly = false,
   });
 
   final SignLanguageSystem signSystem;
   final List<SignToken> signSequence;
   final Widget fallback;
   final int pulse;
-  final String? generatedVideoUrl;
-
-  /// When true, skip R2 clip playback and wait for [generatedVideoUrl].
-  final bool veoOnly;
 
   @override
   State<SignVideoAvatarView> createState() => _SignVideoAvatarViewState();
@@ -50,14 +44,6 @@ class _SignVideoAvatarViewState extends State<SignVideoAvatarView> {
   var _watchdogDuration = Duration.zero;
   List<SignPlaybackClip> _clips = const [];
   Timer? _watchdogTimer;
-  String? _activeGeneratedUrl;
-
-  bool get _useGeneratedPlayback => _hasGeneratedUrl(widget.generatedVideoUrl);
-
-  static bool _hasGeneratedUrl(String? url) {
-    final trimmed = url?.trim();
-    return trimmed != null && trimmed.isNotEmpty;
-  }
 
   @override
   void initState() {
@@ -68,37 +54,12 @@ class _SignVideoAvatarViewState extends State<SignVideoAvatarView> {
   @override
   void didUpdateWidget(SignVideoAvatarView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final generatedChanged =
-        oldWidget.generatedVideoUrl?.trim() != widget.generatedVideoUrl?.trim();
     final sequenceChanged = !_sameSequence(
       oldWidget.signSequence,
       widget.signSequence,
     );
     final pulseChanged = oldWidget.pulse != widget.pulse;
-    final modeChanged =
-        _hasGeneratedUrl(oldWidget.generatedVideoUrl) != _useGeneratedPlayback;
-    final veoOnlyChanged = oldWidget.veoOnly != widget.veoOnly;
-    if (!_catalogReady && !_useGeneratedPlayback && !widget.veoOnly) {
-      return;
-    }
-    if (widget.veoOnly || _useGeneratedPlayback) {
-      if (modeChanged ||
-          veoOnlyChanged ||
-          generatedChanged ||
-          (pulseChanged && !generatedChanged)) {
-        unawaited(
-          _syncGeneratedPlayback(
-            forceReplay: pulseChanged && !generatedChanged,
-          ),
-        );
-      }
-      return;
-    }
     if (!_catalogReady) {
-      return;
-    }
-    if (modeChanged) {
-      unawaited(_syncPlayback(forceReplay: true));
       return;
     }
     if (sequenceChanged ||
@@ -133,17 +94,6 @@ class _SignVideoAvatarViewState extends State<SignVideoAvatarView> {
   }
 
   Future<void> _bootstrap() async {
-    if (widget.veoOnly || _useGeneratedPlayback) {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _catalogReady = true);
-      if (_useGeneratedPlayback) {
-        await _syncGeneratedPlayback(forceReplay: false);
-      }
-      return;
-    }
-
     await SignAssetCatalog.ensureLoaded();
     if (!mounted) {
       return;
@@ -152,58 +102,7 @@ class _SignVideoAvatarViewState extends State<SignVideoAvatarView> {
     await _syncPlayback(forceReplay: false);
   }
 
-  Future<void> _syncGeneratedPlayback({required bool forceReplay}) async {
-    final url = widget.generatedVideoUrl?.trim();
-    if (url == null || url.isEmpty) {
-      return;
-    }
-    if (!forceReplay && url == _activeGeneratedUrl && _videoReady) {
-      return;
-    }
-
-    final generation = ++_playbackGeneration;
-    _activeGeneratedUrl = url;
-    _clips = const [];
-    _clipIndex = 0;
-    _watchdogTimer?.cancel();
-    await _disposeIncoming();
-    await _disposePrefetch();
-    await _disposeController();
-
-    final controller = VideoPlayerController.networkUrl(Uri.parse(url));
-    _controller = controller;
-
-    try {
-      await controller.initialize();
-      if (!mounted || generation != _playbackGeneration) {
-        await controller.dispose();
-        return;
-      }
-      controller.setLooping(false);
-      controller.addListener(_handleTick);
-      _startWatchdog(generation, controller);
-      setState(() {
-        _videoReady = true;
-        _incomingOpacity = 0;
-      });
-      await controller.play();
-    } on Object catch (error) {
-      debugPrint('[SignBridge/SignVideo] Veo playback failed $url ($error)');
-      await controller.dispose();
-      if (_controller == controller) {
-        _controller = null;
-      }
-      if (mounted && generation == _playbackGeneration) {
-        setState(() {
-          _videoReady = false;
-          _activeGeneratedUrl = null;
-        });
-      }
-    }
-  }
-
   Future<void> _syncPlayback({required bool forceReplay}) async {
-    _activeGeneratedUrl = null;
     final clips = await SignAssetCatalog.playbackClipsForSequenceAsync(
       widget.signSequence,
       widget.signSystem,
@@ -597,38 +496,8 @@ class _SignVideoAvatarViewState extends State<SignVideoAvatarView> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.veoOnly && !_useGeneratedPlayback) {
-      return Stack(
-        fit: StackFit.expand,
-        alignment: Alignment.center,
-        children: [
-          widget.fallback,
-          const SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(strokeWidth: 2.5),
-          ),
-        ],
-      );
-    }
-
-    if (!_catalogReady && !_useGeneratedPlayback) {
+    if (!_catalogReady) {
       return widget.fallback;
-    }
-
-    if (_useGeneratedPlayback && !_videoReady) {
-      return Stack(
-        fit: StackFit.expand,
-        alignment: Alignment.center,
-        children: [
-          widget.fallback,
-          const SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(strokeWidth: 2.5),
-          ),
-        ],
-      );
     }
 
     if (_clips.isNotEmpty && !_videoReady) {

@@ -23,7 +23,8 @@ class TalkListenResult {
   /// Spoken text for the live signing chip (current phrase, not session tail).
   final String signingCaption;
 
-  /// Gloss label in the blue signing chip (matches avatar pose).
+  /// Whole-gloss label for the blue signing chip. The chip shows the gloss the
+  /// hands are on while a caption is playing and falls back to this at rest.
   final String signingWord;
 
   /// Native avatar pose id (e.g. `hello`, `how`).

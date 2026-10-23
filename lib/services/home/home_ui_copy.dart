@@ -17,13 +17,9 @@ class HomeUiCopy {
     required this.replayLabel,
     required this.cameraPermissionRequiredLabel,
     required this.signCaptureFailedLabel,
-    required this.signCaptureRateLimitedLabel,
-    required this.signCaptureModelUnavailableLabel,
-    required this.signCaptureServiceUnavailableLabel,
-    required this.signCaptureWorkerOverloadLabel,
-    required this.signCaptureUploadTimeoutLabel,
-    required this.signCaptureNotConfiguredLabel,
-    required this.signCaptureUnauthorizedLabel,
+    required this.signNoHandLabel,
+    required this.signHandWasStillLabel,
+    required this.signCouldNotTellLabel,
     required this.listeningLabel,
     required this.signingPrefix,
     required this.signingListeningWord,
@@ -51,8 +47,6 @@ class HomeUiCopy {
     required this.emergencyPhonePermissionRequiredLabel,
     required this.signRecordingTooShortLabel,
     required this.signRecordingTooLargeLabel,
-    required this.signRecordingEmptyLabel,
-    required this.signNoSignsDetectedLabel,
     required this.aboutSection,
     required this.appLabel,
     required this.versionLabel,
@@ -82,13 +76,11 @@ class HomeUiCopy {
   final String replayLabel;
   final String cameraPermissionRequiredLabel;
   final String signCaptureFailedLabel;
-  final String signCaptureRateLimitedLabel;
-  final String signCaptureModelUnavailableLabel;
-  final String signCaptureServiceUnavailableLabel;
-  final String signCaptureWorkerOverloadLabel;
-  final String signCaptureUploadTimeoutLabel;
-  final String signCaptureNotConfiguredLabel;
-  final String signCaptureUnauthorizedLabel;
+
+  /// The clip was watched but the hand was not there, still, or unclassifiable.
+  final String signNoHandLabel;
+  final String signHandWasStillLabel;
+  final String signCouldNotTellLabel;
   final String listeningLabel;
   final String signingPrefix;
   final String signingListeningWord;
@@ -116,8 +108,6 @@ class HomeUiCopy {
   final String emergencyPhonePermissionRequiredLabel;
   final String signRecordingTooShortLabel;
   final String signRecordingTooLargeLabel;
-  final String signRecordingEmptyLabel;
-  final String signNoSignsDetectedLabel;
   final String aboutSection;
   final String appLabel;
   final String versionLabel;
@@ -157,20 +147,14 @@ const _homeUiCopyByLanguage = <String, HomeUiCopy>{
     cameraPermissionRequiredLabel:
         'Camera permission is required to record signs.',
     signCaptureFailedLabel: 'Could not analyze signs. Please try again.',
-    signCaptureRateLimitedLabel:
-        'Sign analysis is busy right now. Please wait a minute and try again.',
-    signCaptureModelUnavailableLabel:
-        'Sign analysis is temporarily unavailable. Please try again later.',
-    signCaptureServiceUnavailableLabel:
-        'Sign analysis server is unavailable. Please try again shortly.',
-    signCaptureWorkerOverloadLabel:
-        'Sign analysis timed out on the server. Record 2–5 seconds and try again.',
-    signCaptureUploadTimeoutLabel:
-        'Sign analysis took too long. Try a shorter 2–3 second clip.',
-    signCaptureNotConfiguredLabel:
-        'Sign analysis is not configured yet. Please try again later.',
-    signCaptureUnauthorizedLabel:
-        'Sign analysis could not be authorized. Please try again later.',
+    signNoHandLabel:
+        'No hand was in the frame. Keep your hand up to the camera and try '
+        'again.',
+    signHandWasStillLabel:
+        'Your hand stayed still. Most signs move, so try again.',
+    signCouldNotTellLabel:
+        'Could not tell what that was. Try a clear HELLO wave, YES nod, NO '
+        'shake or STOP held palm.',
     listeningLabel: 'Listening...',
     signingPrefix: 'Signing:',
     signingListeningWord: '...',
@@ -203,10 +187,6 @@ const _homeUiCopyByLanguage = <String, HomeUiCopy>{
         'Hold record for at least 2 seconds while signing your full phrase.',
     signRecordingTooLargeLabel:
         'Recording is too large. Sign for 2–5 seconds and try again.',
-    signRecordingEmptyLabel:
-        'Recording was empty. Try signing clearly for 2–3 seconds.',
-    signNoSignsDetectedLabel:
-        'No signs detected. Try signing clearly for 2–3 seconds.',
     aboutSection: 'ABOUT',
     appLabel: 'App',
     versionLabel: 'Version',
@@ -244,20 +224,11 @@ const _homeUiCopyByLanguage = <String, HomeUiCopy>{
         'സൈനുകൾ റെക്കോർഡ് ചെയ്യാൻ ക്യാമറ അനുമതി ആവശ്യമാണ്.',
     signCaptureFailedLabel:
         'സൈനുകൾ വിശകലനം ചെയ്യാൻ കഴിഞ്ഞില്ല. വീണ്ടും ശ്രമിക്കുക.',
-    signCaptureRateLimitedLabel:
-        'സൈൻ വിശകലനം ഇപ്പോൾ തിരക്കിലാണ്. ഒരു മിനിറ്റ് കാത്തിരുന്ന് വീണ്ടും ശ്രമിക്കുക.',
-    signCaptureModelUnavailableLabel:
-        'സൈൻ വിശകലനം താൽക്കാലികമായി ലഭ്യമല്ല. പിന്നീട് വീണ്ടും ശ്രമിക്കുക.',
-    signCaptureServiceUnavailableLabel:
-        'സൈൻ വിശകലന സർവർ ലഭ്യമല്ല. കുറച്ച് കഴിഞ്ഞ് വീണ്ടും ശ്രമിക്കുക.',
-    signCaptureWorkerOverloadLabel:
-        'സൈൻ വിശകലനം സർവറിൽ സമയം കഴിഞ്ഞു. 2–5 സെക്കന്റ് റെക്കോർഡ് ചെയ്ത് വീണ്ടും ശ്രമിക്കുക.',
-    signCaptureUploadTimeoutLabel:
-        'സൈൻ വിശകലനം വളരെ സമയമെടുത്തു. 2–3 സെക്കന്റ് ക്ലിപ്പ് ഉപയോഗിച്ച് ശ്രമിക്കുക.',
-    signCaptureNotConfiguredLabel:
-        'സൈൻ വിശകലനം ഇതുവരെ ക്രമീകരിച്ചിട്ടില്ല. പിന്നീട് വീണ്ടും ശ്രമിക്കുക.',
-    signCaptureUnauthorizedLabel:
-        'സൈൻ വിശകലനം അംഗീകരിക്കാൻ കഴിഞ്ഞില്ല. വീണ്ടും ശ്രമിക്കുക.',
+    signNoHandLabel:
+        'ഫ്രെയിമിൽ കൈ ഇല്ലായിരുന്നു. കൈ ക്യാമറയിലേക്ക് വെച്ച് വീണ്ടും ശ്രമിക്കുക.',
+    signHandWasStillLabel: 'നിങ്ങളുടെ കൈ നീങ്ങിയില്ല. വീണ്ടും ശ്രമിക്കുക.',
+    signCouldNotTellLabel:
+        'ഇത് തിരിച്ചറിയാൻ കഴിഞ്ഞില്ല. HELLO, YES, NO, STOP വ്യക്തമായി സൈൻ ചെയ്യുക.',
     listeningLabel: 'കേൾക്കുന്നു...',
     signingPrefix: 'സൈൻ ചെയ്യുന്നു:',
     signingListeningWord: '...',
@@ -292,10 +263,6 @@ const _homeUiCopyByLanguage = <String, HomeUiCopy>{
         'സൈൻ ചെയ്യുമ്പോൾ റെക്കോർഡ് ബട്ടൺ കുറഞ്ഞത് 2 സെക്കന്റ് hold ചെയ്യുക.',
     signRecordingTooLargeLabel:
         'റെക്കോർഡിംഗ് വളരെ വലുതാണ്. 2–5 സെക്കന്റ് സൈൻ ചെയ്ത് വീണ്ടും ശ്രമിക്കുക.',
-    signRecordingEmptyLabel:
-        'റെക്കോർഡിംഗ് empty ആയിരുന്നു. 2–3 സെക്കന്റ് clearly സൈൻ ചെയ്ത് വീണ്ടും ശ്രമിക്കുക.',
-    signNoSignsDetectedLabel:
-        'സൈനുകൾ കണ്ടെത്തിയില്ല. 2–3 സെക്കന്റ് clearly സൈൻ ചെയ്ത് വീണ്ടും ശ്രമിക്കുക.',
     aboutSection: 'കുറിച്ച്',
     appLabel: 'ആപ്പ്',
     versionLabel: 'പതിപ്പ്',
@@ -333,20 +300,11 @@ const _homeUiCopyByLanguage = <String, HomeUiCopy>{
         'साइन रिकॉर्ड करने के लिए कैमरा अनुमति आवश्यक है।',
     signCaptureFailedLabel:
         'साइन का विश्लेषण नहीं हो सका। कृपया पुनः प्रयास करें।',
-    signCaptureRateLimitedLabel:
-        'साइन विश्लेषण अभी व्यस्त है। एक मिनट रुककर पुनः प्रयास करें।',
-    signCaptureModelUnavailableLabel:
-        'साइन विश्लेषण अस्थायी रूप से उपलब्ध नहीं है। बाद में पुनः प्रयास करें।',
-    signCaptureServiceUnavailableLabel:
-        'साइन विश्लेषण सर्वर उपलब्ध नहीं है। थोड़ी देर बाद पुनः प्रयास करें।',
-    signCaptureWorkerOverloadLabel:
-        'साइन विश्लेषण सर्वर पर समय समाप्त हो गया। 2–5 सेकंड रिकॉर्ड करके पुनः प्रयास करें।',
-    signCaptureUploadTimeoutLabel:
-        'साइन विश्लेषण में बहुत समय लगा। 2–3 सेकंड का छोटा क्लिप आज़माएँ।',
-    signCaptureNotConfiguredLabel:
-        'साइन विश्लेषण अभी कॉन्फ़िगर नहीं है। बाद में पुनः प्रयास करें।',
-    signCaptureUnauthorizedLabel:
-        'साइन विश्लेषण अधिकृत नहीं हो सका। पुनः प्रयास करें।',
+    signNoHandLabel:
+        'फ्रेम में हाथ नहीं था। हाथ कैमरे की ओर रखकर फिर कोशिश करें।',
+    signHandWasStillLabel: 'आपका हाथ हिला नहीं। फिर कोशिश करें।',
+    signCouldNotTellLabel:
+        'यह पहचाना नहीं जा सका। HELLO, YES, NO, STOP साफ़ साइन करें।',
     listeningLabel: 'सुन रहा है...',
     signingPrefix: 'साइन कर रहा है:',
     signingListeningWord: '...',
@@ -379,10 +337,6 @@ const _homeUiCopyByLanguage = <String, HomeUiCopy>{
         'पूरा वाक्य साइन करते हुए रिकॉर्ड कम से कम 2 सेकंड दबाए रखें।',
     signRecordingTooLargeLabel:
         'रिकॉर्डिंग बहुत बड़ी है। 2–5 सेकंड साइन करके फिर कोशिश करें।',
-    signRecordingEmptyLabel:
-        'रिकॉर्डिंग खाली थी। 2–3 सेकंड स्पष्ट साइन करके फिर कोशिश करें।',
-    signNoSignsDetectedLabel:
-        'कोई साइन नहीं मिला। 2–3 सेकंड स्पष्ट साइन करके फिर कोशिश करें।',
     aboutSection: 'के बारे में',
     appLabel: 'ऐप',
     versionLabel: 'संस्करण',
@@ -419,20 +373,11 @@ const _homeUiCopyByLanguage = <String, HomeUiCopy>{
     cameraPermissionRequiredLabel: 'சைகைகளை பதிவு செய்ய கேமரா அனுமதி தேவை.',
     signCaptureFailedLabel:
         'சைகைகளை பகுப்பாய்வு செய்ய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
-    signCaptureRateLimitedLabel:
-        'சைகை பகுப்பாய்வு இப்போது பிஸியாக உள்ளது. ஒரு நிமிடம் காத்திருந்து மீண்டும் முயற்சிக்கவும்.',
-    signCaptureModelUnavailableLabel:
-        'சைகை பகுப்பாய்வு தற்காலிகமாக கிடைக்கவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.',
-    signCaptureServiceUnavailableLabel:
-        'சைகை பகுப்பாய்வு சேவையகம் கிடைக்கவில்லை. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.',
-    signCaptureWorkerOverloadLabel:
-        'சைகை பகுப்பாய்வு சேவையகத்தில் நேரம் முடிந்தது. 2–5 வினாடிகள் பதிவு செய்து மீண்டும் முயற்சிக்கவும்.',
-    signCaptureUploadTimeoutLabel:
-        'சைகை பகுப்பாய்வு நீண்ட நேரம் எடுத்தது. 2–3 வினாடி குறுகிய கிளிப்பை முயற்சிக்கவும்.',
-    signCaptureNotConfiguredLabel:
-        'சைகை பகுப்பாய்வு இன்னும் அமைக்கப்படவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.',
-    signCaptureUnauthorizedLabel:
-        'சைகை பகுப்பாய்வை அங்கீகரிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    signNoHandLabel:
+        'ஃப்ரேமில் கை இல்லை. கையை கேமராவிற்கு காட்டி மீண்டும் முயற்சிக்கவும்.',
+    signHandWasStillLabel: 'உங்கள் கை அசையவில்லை. மீண்டும் முயற்சிக்கவும்.',
+    signCouldNotTellLabel:
+        'அதை அறிய முடியவில்லை. HELLO, YES, NO, STOP தெளிவாக சைகை செய்யுங்கள்.',
     listeningLabel: 'கேட்கிறது...',
     signingPrefix: 'சைகை செய்கிறது:',
     signingListeningWord: '...',
@@ -467,10 +412,6 @@ const _homeUiCopyByLanguage = <String, HomeUiCopy>{
         'முழு வாக்கியம் சைகை செய்து கொண்டே ரெக்கார்டை குறைந்தது 2 வினாடிகள் அழுத்தி வைத்திருங்கள்.',
     signRecordingTooLargeLabel:
         'பதிவு மிகப் பெரியது. 2–5 வினாடிகள் சைகை செய்து மீண்டும் முயற்சிக்கவும்.',
-    signRecordingEmptyLabel:
-        'பதிவு காலியாக இருந்தது. 2–3 வினாடிகள் தெளிவாக சைகை செய்து மீண்டும் முயற்சிக்கவும்.',
-    signNoSignsDetectedLabel:
-        'சைகைகள் கண்டறியப்படவில்லை. 2–3 வினாடிகள் தெளிவாக சைகை செய்து மீண்டும் முயற்சிக்கவும்.',
     aboutSection: 'பற்றி',
     appLabel: 'பயன்பாடு',
     versionLabel: 'பதிப்பு',

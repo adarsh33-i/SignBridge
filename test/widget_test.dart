@@ -27,7 +27,7 @@ void main() {
     microphonePermissionRequester = () async => true;
     speechPermissionRequester = () async => true;
     mockPhraseSpeech.lastSpokenText = null;
-    mockSignCapture.lastVideoPath = null;
+    mockSignCapture.lastLiveSession = null;
   });
 
   tearDown(() async {
@@ -112,7 +112,7 @@ void main() {
     expect(find.text('Clear history'), findsOneWidget);
     expect(find.textContaining('My name is Alex. I am deaf.'), findsOneWidget);
     expect(find.textContaining('Spoken · 01:00'), findsOneWidget);
-    expect(mockSignCapture.lastVideoPath, 'mock-sign-capture.mp4');
+    expect(mockSignCapture.lastLiveSession, isNotNull);
     expect(mockPhraseSpeech.lastSpokenText, 'My name is Alex. I am deaf.');
 
     await tester.tap(find.byKey(const Key('talk_clear_history_button')));

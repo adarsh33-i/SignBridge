@@ -7,9 +7,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/platform/sign_camera_test_mode.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../services/vision/sign_gesture_session.dart';
 
-typedef SignRecordingStoppedHandler =
-    void Function(String videoPath, Duration recordingDuration);
+typedef SignRecordingStoppedHandler = void Function(Duration recordingDuration);
 
 /// Controls [SignCameraRecorder] from an overlay (e.g. flip camera).
 class SignCameraRecorderController extends ChangeNotifier {
@@ -63,17 +63,22 @@ class SignCameraRecorderController extends ChangeNotifier {
   }
 }
 
-/// Front-camera preview that records sign-language video to a temp file.
+/// Front-camera preview that watches a sign clip being made, frame by frame.
 class SignCameraRecorder extends StatefulWidget {
   const SignCameraRecorder({
     super.key,
     this.controller,
+    this.gestureSession,
     required this.isRecording,
     required this.onRecordingStopped,
     required this.onError,
   });
 
   final SignCameraRecorderController? controller;
+
+  /// Filled with one hand frame per sampled frame while the clip is watched.
+  /// This is all the recognizer ever gets: no part of this app decodes video.
+  final SignGestureSession? gestureSession;
   final bool isRecording;
   final SignRecordingStoppedHandler onRecordingStopped;
   final ValueChanged<String> onError;
@@ -85,15 +90,19 @@ class SignCameraRecorder extends StatefulWidget {
 class _SignCameraRecorderState extends State<SignCameraRecorder> {
   CameraController? _controller;
   List<CameraDescription> _cameras = const [];
-  bool _isRecordingVideo = false;
+  bool _isCapturing = false;
+  bool _isStreaming = false;
   bool _stopPending = false;
   bool _startInFlight = false;
   bool _isFlipping = false;
-  DateTime? _videoRecordingStartedAt;
+  DateTime? _captureStartedAt;
+  DateTime? _gestureFrameAt;
   bool _lastPublishedCanFlip = false;
 
+  static const _gestureFrameInterval = Duration(milliseconds: 100);
+
   bool get _canFlipCamera {
-    if (_isRecordingVideo || _stopPending || _isFlipping) {
+    if (_isCapturing || _stopPending || _isFlipping) {
       return false;
     }
     final controller = _controller;
@@ -132,7 +141,7 @@ class _SignCameraRecorderState extends State<SignCameraRecorder> {
   }
 
   Future<void> flipCamera() async {
-    if (_isFlipping || _isRecordingVideo) {
+    if (_isFlipping || _isCapturing) {
       return;
     }
 
@@ -141,7 +150,7 @@ class _SignCameraRecorderState extends State<SignCameraRecorder> {
       final controller = _controller;
       if (controller != null &&
           controller.value.isInitialized &&
-          !_isRecordingVideo &&
+          !_isCapturing &&
           !_stopPending &&
           !_isFlipping) {
         final current = controller.value.description.lensDirection;
@@ -155,7 +164,7 @@ class _SignCameraRecorderState extends State<SignCameraRecorder> {
     final controller = _controller;
     if (controller == null ||
         !controller.value.isInitialized ||
-        _isRecordingVideo ||
+        _isCapturing ||
         _isFlipping) {
       return;
     }
@@ -227,9 +236,7 @@ class _SignCameraRecorderState extends State<SignCameraRecorder> {
         camera,
         ResolutionPreset.low,
         enableAudio: false,
-        // Keep sign clips small for worker upload and Gemini file processing.
-        videoBitrate: 2_000_000,
-        // JPEG stream format breaks video reconfigure on some Samsung devices.
+        // JPEG stream format breaks the frame stream on some Samsung devices.
         imageFormatGroup: Platform.isAndroid ? null : ImageFormatGroup.bgra8888,
       );
       await controller.initialize();
@@ -252,10 +259,10 @@ class _SignCameraRecorderState extends State<SignCameraRecorder> {
     }
   }
 
-  static const _minRecordBeforeStop = Duration(milliseconds: 400);
+  static const _minWatchBeforeStop = Duration(milliseconds: 400);
 
   Future<void> _handleStopRequest() async {
-    if (_isRecordingVideo) {
+    if (_isCapturing) {
       await _stopRecording();
       return;
     }
@@ -269,19 +276,26 @@ class _SignCameraRecorderState extends State<SignCameraRecorder> {
     _stopPending = false;
   }
 
+  /// Watch the camera for the length of one sign clip. No MP4 is written: a
+  /// bound video recorder makes the preview jump sideways mid-sign.
   Future<void> _startRecording() async {
     final controller = _controller;
     if (controller == null ||
         !controller.value.isInitialized ||
-        _isRecordingVideo ||
+        _isCapturing ||
         _startInFlight) {
       return;
     }
     _startInFlight = true;
+    widget.gestureSession?.reset();
+    _gestureFrameAt = null;
     try {
-      await controller.startVideoRecording();
-      _isRecordingVideo = true;
-      _videoRecordingStartedAt = DateTime.now();
+      if (widget.gestureSession != null) {
+        await controller.startImageStream(_onCameraFrame);
+        _isStreaming = true;
+      }
+      _isCapturing = true;
+      _captureStartedAt = DateTime.now();
       if (!widget.isRecording) {
         _stopPending = false;
         await _stopRecording();
@@ -298,35 +312,55 @@ class _SignCameraRecorderState extends State<SignCameraRecorder> {
     }
   }
 
+  /// One sampled frame every 100 ms is what the rules were written against: a
+  /// sign takes a second or more.
+  void _onCameraFrame(CameraImage image) {
+    final session = widget.gestureSession;
+    if (session == null || !_isCapturing) {
+      return;
+    }
+    final now = DateTime.now();
+    final last = _gestureFrameAt;
+    if (last != null && now.difference(last) < _gestureFrameInterval) {
+      return;
+    }
+    _gestureFrameAt = now;
+    session.addFrame(image, at: now);
+  }
+
   Future<void> _stopRecording() async {
     final controller = _controller;
-    if (controller == null || !_isRecordingVideo) {
+    if (controller == null || !_isCapturing) {
       return;
     }
-    final startedAt = _videoRecordingStartedAt;
+    final startedAt = _captureStartedAt;
     if (startedAt != null) {
       final elapsed = DateTime.now().difference(startedAt);
-      if (elapsed < _minRecordBeforeStop) {
-        await Future<void>.delayed(_minRecordBeforeStop - elapsed);
+      if (elapsed < _minWatchBeforeStop) {
+        await Future<void>.delayed(_minWatchBeforeStop - elapsed);
       }
     }
-    if (!_isRecordingVideo || controller != _controller) {
+    if (!_isCapturing || controller != _controller) {
       return;
     }
+    _isCapturing = false;
     try {
-      final file = await controller.stopVideoRecording();
-      _isRecordingVideo = false;
-      _stopPending = false;
-      final recordingDuration = _videoRecordingStartedAt == null
-          ? Duration.zero
-          : DateTime.now().difference(_videoRecordingStartedAt!);
-      _videoRecordingStartedAt = null;
-      // Let the encoder/camera HAL release before the widget is disposed for
-      // the analyzing phase (avoids stream reconfigure errors on Samsung).
-      if (Platform.isAndroid) {
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+      if (_isStreaming) {
+        _isStreaming = false;
+        await controller.stopImageStream();
       }
-      widget.onRecordingStopped(file.path, recordingDuration);
+      _stopPending = false;
+      final recordingDuration = _captureStartedAt == null
+          ? Duration.zero
+          : DateTime.now().difference(_captureStartedAt!);
+      _captureStartedAt = null;
+      final session = widget.gestureSession;
+      debugPrint(
+        '[SignBridge/SignCapture] ${session?.sampledCount ?? 0} of '
+        '${session?.receivedCount ?? 0} sampled camera frames became hand '
+        'frames (${session?.unreadableCount ?? 0} dropped)',
+      );
+      widget.onRecordingStopped(recordingDuration);
     } on Object catch (error) {
       _stopPending = false;
       widget.onError(error.toString());

@@ -64,7 +64,11 @@ abstract final class SignLanguageCatalog {
   }) {
     final system = SignLanguageSystem.forSpokenLanguage(languageCode);
     final prepared = SpokenTextPrep.normalizeForGloss(transcript, languageCode);
-    final rawWords = splitWords(prepared);
+    var rawWords = splitWords(prepared);
+    if (rawWords.isEmpty) {
+      // A clause of pure auxiliaries (है / ஆகும்) normalizes to nothing.
+      rawWords = splitWords(transcript);
+    }
     if (rawWords.isEmpty) {
       return const [];
     }

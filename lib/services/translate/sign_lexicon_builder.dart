@@ -44,6 +44,35 @@ abstract final class SignLexiconBuilder {
   static final _digitsPattern = RegExp(r'^\d+$');
   static final _percentPattern = RegExp(r'^(\d+)%$');
 
+  static final _durationCompound = RegExp(
+    r'^(one|two|three|four|five|six|seven|eight|nine|\d{1,2})-'
+    r'(days?|weeks?|years?|hours?|minutes?|months?|times?|dollars?)'
+    r'(-ago|-old)?$',
+  );
+
+  static const _numeralDigits = {
+    'one': '1',
+    'two': '2',
+    'three': '3',
+    'four': '4',
+    'five': '5',
+    'six': '6',
+    'seven': '7',
+    'eight': '8',
+    'nine': '9',
+  };
+
+  /// two-weeks → 2-WEEKS (numeral incorporation shape), matching the
+  /// corpus rows this generalizes (two-days → 2-DAYS, X-weeks-ago).
+  static String? _durationCompoundGloss(String normalized) {
+    final match = _durationCompound.firstMatch(normalized);
+    if (match == null) {
+      return null;
+    }
+    final numeral = _numeralDigits[match.group(1)] ?? match.group(1)!;
+    return '$numeral-${match.group(2)}${match.group(3) ?? ''}'.toUpperCase();
+  }
+
   static SignToken? resolve(String normalized, SignLanguageSystem system) {
     if (normalized.isEmpty) {
       return null;
@@ -261,6 +290,11 @@ abstract final class SignLexiconBuilder {
         gloss: pedagogyGloss,
         system: system,
       );
+    }
+
+    final durationGloss = _durationCompoundGloss(normalized);
+    if (durationGloss != null) {
+      return SignToken(id: normalized, gloss: durationGloss, system: system);
     }
 
     if (system == SignLanguageSystem.asl) {

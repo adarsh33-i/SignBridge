@@ -9,7 +9,6 @@ void main() {
     test('manual stop flow allows up to 30 second clips', () {
       expect(SignCaptureConfig.maxRecordingDuration.inSeconds, 30);
       expect(SignCaptureConfig.minRecordingDuration.inSeconds, 2);
-      expect(SignCaptureConfig.workerRequestTimeout.inSeconds, 240);
     });
   });
 

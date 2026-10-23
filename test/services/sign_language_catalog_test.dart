@@ -242,7 +242,10 @@ void main() {
         'Are you coming',
         'ENG',
       ).map((t) => t.gloss).toList(),
-      ['[y/n-q]', 'YOU', 'ARRIVE', 'YOU'],
+      // "coming" used to reach ARRIVE: ASL-LEX lists "come" among the English
+      // equivalents of the ARRIVE sign, and that row out-frequency-signs COME.
+      // A word now answers with the sign named after it.
+      ['[y/n-q]', 'YOU', 'COME', 'YOU'],
     );
   });
 
@@ -372,7 +375,9 @@ void main() {
         'today is a holiday for me',
         'ENG',
       ).map((t) => t.gloss).toList(),
-      ['TODAY', 'VACATION', 'ME'],
+      // HOLIDAY, not VACATION: the word answers with its own sign now that a
+      // sign's name outranks another sign's list of English equivalents.
+      ['TODAY', 'HOLIDAY', 'ME'],
     );
     expect(
       SignGlossMapper.signSequence(
@@ -400,7 +405,7 @@ void main() {
         'doctor will come to the shop after 9:30',
         'ENG',
       ).map((t) => t.gloss).toList(),
-      ['WILL', 'DOCTOR', 'SHOP', '9:30', 'ARRIVE'],
+      ['WILL', 'DOCTOR', 'SHOP', '9:30', 'COME'],
     );
     expect(
       SignGlossMapper.signSequence(
