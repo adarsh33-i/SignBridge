@@ -15,6 +15,13 @@ abstract final class SignGlossMapper {
     return SignLanguageCatalog.sequenceFor(transcript, languageCode);
   }
 
+  /// Whether a caption the speaker is still saying has a word the rules can
+  /// sign. The live run asks this before showing anything, so an opening that
+  /// is only function words does not get spelled out and then removed.
+  static bool hasLiveSigns(String transcript, String languageCode) {
+    return SignLanguageCatalog.hasSignableContent(transcript, languageCode);
+  }
+
   static SignToken activeSign(String transcript, String languageCode) {
     return SignLanguageCatalog.activeToken(transcript, languageCode);
   }

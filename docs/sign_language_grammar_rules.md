@@ -53,7 +53,7 @@ Primary framework: **Time + Topic + Comment** (Germanna / LifePrint curriculum m
 | WH-final | WH-sign at end + `[wh-q]` | *Why did you go?* → `YOU GO WHY [wh-q]` |
 | Y/N questions | `[y/n-q]` prefix + pronoun copy | *Are you Deaf?* → `[y/n-q] YOU DEAF YOU` |
 | Post-fix negation | `NOT` / `CANNOT` + `[headshake]` | *I cannot cook* → `ME COOK CANNOT [headshake]` |
-| Rhetorical WHY | `because` / `so` → `[rh-q] WHY` + reason | *I am late because traffic was heavy* → `… [rh-q] WHY TRAFFIC …` |
+| Reason clause | keep the speaker's junction: `because` → `REASON`, `so` → `SO`, then the reason | *I am late because traffic was heavy* → `ME LATE REASON TRAFFIC HEAVY` |
 
 ### Module 3 — Word mechanics
 
@@ -107,7 +107,7 @@ Negated clauses may reorder to **Topic + Subject + NOT + Verb**.
 |--------|------|
 | `[y/n-q]` | Yes/no question (clause start) |
 | `[wh-q]` | WH question (clause end) |
-| `[rh-q]` | Rhetorical question (before `WHY`) |
+| `[rh-q]` | Rhetorical question — only for a caption that asks one. A `because`/`so` statement keeps its junction sign instead, and `so` before an adjective (*so happy*) is an intensifier, not a clause junction |
 | `[headshake]` | Negation |
 | `[mm]` | Habitual / routine |
 | `[cha]` | Intensity (`very`, `slow`, …) |
@@ -212,6 +212,7 @@ Defined in `lib/services/translate/isl_nmm_markers.dart`.
 | `isl_rules_audit_test.dart` | 18 core ISL grammar sentences |
 | `category_corpus_audit_test.dart` | 100 English daily-life sentences (ASL coverage) |
 | `asl_grammar_shift_audit_test.dart` | Complex English → ASL coverage |
+| `caption_gloss_audit_test.dart` | Corpus-wide caption → gloss audit: meaning survival, provenance, preview drift ([report](caption_gloss_audit.md)) |
 
 Run all grammar compliance tests:
 

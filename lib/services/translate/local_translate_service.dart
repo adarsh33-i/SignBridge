@@ -774,8 +774,15 @@ final class LocalTranslateService implements TranslateService {
   /// the words the grammar has just introduced, in the order they arrived. The
   /// full reordered sentence is played in the signing phase from [_buildResult].
   List<SignToken> _liveSequence(String glossSource) {
-    final fresh = SignGlossMapper.signSequence(glossSource, _languageCode);
     final previous = _latestUpdate?.signSequence ?? const <SignToken>[];
+    // A prefix that is only function words ("The", "A the") has no content yet.
+    // The gloss rules answer those words with themselves so a finished caption
+    // never shows a blank card, but here the sentence is still being spoken:
+    // signing them makes the avatar spell a word the final pass drops.
+    if (!SignGlossMapper.hasLiveSigns(glossSource, _languageCode)) {
+      return previous;
+    }
+    final fresh = SignGlossMapper.signSequence(glossSource, _languageCode);
     if (previous.isEmpty) return fresh;
     final seen = {
       for (final token in previous) '${token.id}|${token.gloss}',

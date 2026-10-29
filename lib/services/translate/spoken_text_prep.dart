@@ -103,7 +103,9 @@ abstract final class SpokenTextPrep {
       final char = out[i];
       final expanded = _chilluLetters[char];
       if (expanded == null) {
-        buffer.write(_devanagariNukta[char] ?? char);
+        buffer.write(
+          _devanagariDigits[char] ?? _devanagariNukta[char] ?? char,
+        );
         continue;
       }
       buffer.write(expanded);
@@ -113,6 +115,21 @@ abstract final class SpokenTextPrep {
     }
     return buffer.toString();
   }
+
+  /// STT returns Devanagari digits for a Hindi caption (१० बजे); the number
+  /// rules only read ASCII digits, so they are folded with the script variants.
+  static const _devanagariDigits = <String, String>{
+    '\u0966': '0',
+    '\u0967': '1',
+    '\u0968': '2',
+    '\u0969': '3',
+    '\u096A': '4',
+    '\u096B': '5',
+    '\u096C': '6',
+    '\u096D': '7',
+    '\u096E': '8',
+    '\u096F': '9',
+  };
 
   static const _composedSigns = <String, String>{
     '\u0BC6\u0BBE': '\u0BCA',
@@ -690,6 +707,45 @@ abstract final class SpokenTextPrep {
     'से': 'from',
     'और': '',
     'एक': 'a',
+    // Forms the whole-sentence phrase corpus used to be the only path to: a
+    // caption that is not one of those lines — or a prefix of one, which is what
+    // the live preview sends while the speaker is still talking — fell through
+    // to these tokens untranslated and showed as Devanagari instead of a sign.
+    // Each gloss is the one the phrase corpus already uses for that word.
+    'हो': '',
+    'होने': '',
+    'होना': '',
+    'लिए': '',
+    'वाली': '',
+    'लगी': '',
+    'बजे': "o'clock",
+    'मैंने': 'i',
+    'कोई': 'any',
+    'दो': 'two',
+    'बार': 'time',
+    'रहता': 'live',
+    'रहती': 'live',
+    'रहते': 'live',
+    'सीख': 'learn',
+    'चल': 'go',
+    'आ': 'come',
+    'आए': 'arrive',
+    'लेते': 'take',
+    'लेनी': 'take',
+    'दिया': 'give',
+    'करानी': 'do',
+    'तेज': 'strong',
+    'जमा': 'submit',
+    'पूरा': 'finish',
+    'खत्म': 'finish',
+    'अच्छी': 'good',
+    'कितनी': 'how-much',
+    'कितने': 'how-many',
+    'चक्कर': 'dizzy',
+    'सूज': 'swelling',
+    'टपक': 'drip',
+    'जांच': 'test',
+    'उधार': 'borrow',
     // Romanized Hindi (common STT output on phones)
     'main': 'I',
     'mein': 'I',

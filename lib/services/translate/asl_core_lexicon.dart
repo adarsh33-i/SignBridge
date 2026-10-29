@@ -528,7 +528,7 @@ abstract final class AslCoreLexicon {
     'platform': 'PLATFORM',
     'brick': 'BRICK',
     'weather': 'WEATHER',
-    'incredibly': 'AWFUL',
+    'incredibly': 'VERY',
     'hot': 'HOT',
     'cold': 'COLD',
     'tastes': 'TASTE',

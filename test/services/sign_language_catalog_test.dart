@@ -59,9 +59,46 @@ void main() {
     expect(sequence.map((t) => t.gloss).toList(), ['THIS', 'REAL', 'GOOD']);
   });
 
-  test('common adjectives use certified ASL gloss when available', () {
+  test('common adjectives use the sign that names them', () {
+    // ORANGE_EYES is a sibling sign a little more frequent than AMAZING and
+    // lists "amazing" among its dominant translations; frequency alone used to
+    // hand it the word, so the AMAZING sign was never shown for its own name.
     final sequence = SignGlossMapper.signSequence('amazing', 'ENG');
-    expect(sequence.map((t) => t.gloss).toList(), ['ORANGE_EYES']);
+    expect(sequence.map((t) => t.gloss).toList(), ['AMAZING']);
+    expect(sequence.map((t) => t.id).toList(), ['amazing']);
+  });
+
+  test('the ASL-LEX table prefers a word\'s own sign over a rival', () {
+    // Each of these was answered by another sign's English-equivalent list,
+    // which wins on frequency alone: TRAFFIC for cars, BRIDESMAID for flowers,
+    // STAMP_1 for state. `tears` is in the plural exception list because
+    // inheriting TEAR would sign a drop from an eye; it keeps CRY.
+    const expected = {
+      'amazing': 'AMAZING',
+      'cars': 'CAR',
+      'flowers': 'FLOWER',
+      'matches': 'MATCH',
+      'state': 'STATE',
+      'tears': 'CRY',
+      'what': 'WHAT',
+    };
+    for (final entry in expected.entries) {
+      expect(
+        AslSignLexicon.lookup(entry.key)?.gloss,
+        entry.value,
+        reason: entry.key,
+      );
+    }
+
+    // A sign whose SignBank gloss is still unassigned makes no claim at all,
+    // so the word is not left pointing at NEED-ID-GLOSS.
+    for (final word in ['skate', 'skates', 'ice-skating']) {
+      expect(
+        AslSignLexicon.lookup(word)?.gloss,
+        isNot('NEED-ID-GLOSS'),
+        reason: word,
+      );
+    }
   });
 
   test('asl sign lexicon loads thousands of certified entries', () {
@@ -123,10 +160,83 @@ void main() {
     expect(withTime.map((t) => t.gloss).toList(), ['YESTERDAY', 'ME', 'RUN']);
   });
 
+  // Past marking is three-way: FINISH, a past time anchor, or the question
+  // face. These pin the cases that used to read as present.
+  test('past auxiliaries did and had mark the clause past', () {
+    List<String> gloss(String sentence) => SignGlossMapper.signSequence(
+      sentence,
+      'ENG',
+    ).map((t) => t.gloss).toList();
+
+    expect(gloss('I did not go to the party'), contains('FINISH'));
+    expect(gloss('I had to leave early'), contains('FINISH'));
+    expect(gloss('They sorted the columns'), contains('FINISH'));
+  });
+
+  test('a neutral time word does not replace FINISH', () {
+    final gloss = SignGlossMapper.signSequence(
+      'I bought a ticket this weekend',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(gloss, contains('FINISH'));
+  });
+
+  test('a copula plus adverb plus adjective is not a past verb', () {
+    final gloss = SignGlossMapper.signSequence(
+      'I am quite bewildered by the news',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(gloss, isNot(contains('FINISH')));
+  });
+
+  test('a future clause does not turn its participles past', () {
+    final gloss = SignGlossMapper.signSequence(
+      'Security officers will closely scrutinize all luggage items left inside '
+      'the station',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(gloss, contains('WILL'));
+    expect(gloss, isNot(contains('FINISH')));
+  });
+
+  test('a past verb before the future auxiliary still marks past', () {
+    final gloss = SignGlossMapper.signSequence(
+      'My computer screen went blank and now it will not turn on',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(gloss, contains('FINISH'));
+    expect(gloss, contains('WILL'));
+  });
+
+  test('an intransitive past verb followed by a preposition stays finite', () {
+    final gloss = SignGlossMapper.signSequence(
+      'The two ships arrived at the same coordinate',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(gloss, contains('FINISH'));
+  });
+
+  test('a caption that opens with time signs that time first', () {
+    final gloss = SignGlossMapper.signSequence(
+      'Every Saturday morning I clean my whole house',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(gloss.take(3).toList(), ['EVERY', 'SATURDAY', 'MORNING']);
+  });
+
+  test('a wh-word inside a statement does not add a question face', () {
+    final gloss = SignGlossMapper.signSequence(
+      'The actor who later won the award thanked the crew',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(gloss, isNot(contains('[wh-q]')));
+    expect(gloss, contains('FINISH'));
+  });
+
   test('ASL negation is post-fix NOT with headshake', () {
     final sequence = SignGlossMapper.signSequence("I don't like pizza", 'ENG');
     expect(sequence.map((t) => t.gloss).toList(), [
-      'PIZZA_1',
+      'PIZZA',
       'ME',
       'LIKE',
       'NOT',
@@ -291,14 +401,15 @@ void main() {
         'tell me what happened',
         'ENG',
       ).map((t) => t.gloss).toList(),
-      ['ME', 'TELL', 'WHAT', 'HAPPEN'],
+      // HAPPENED is past and the clause is not a question, so FINISH stays.
+      ['ME', 'TELL', 'WHAT', 'HAPPEN', 'FINISH'],
     );
     expect(
       SignGlossMapper.signSequence(
         'I am telling you what happened',
         'ENG',
       ).map((t) => t.gloss).toList(),
-      ['ME', 'TELL-YOU', 'WHAT', 'HAPPEN'],
+      ['ME', 'TELL-YOU', 'WHAT', 'HAPPEN', 'FINISH'],
     );
   });
 
@@ -443,5 +554,119 @@ void main() {
     ).map((t) => t.gloss).toList();
     expect(glosses, contains('CAT'));
     expect(glosses.where((g) => g.length == 1 && g == 'C'), isEmpty);
+  });
+
+  test(
+    'ASL puts a negated if-clause inside the condition, not at clause end',
+    () {
+      final glosses = SignGlossMapper.signSequence(
+        'The doctor will change your treatment plan if the fever does not drop.',
+        'ENG',
+      ).map((t) => t.gloss).toList();
+      expect(glosses, contains('NOT'));
+      // The condition is fronted, so NOT must sit before the main clause verb: a
+      // clause-final NOT would negate *the doctor will change* instead.
+      expect(glosses.indexOf('NOT'), lessThan(glosses.indexOf('CHANGE')));
+      expect(glosses.indexOf('NOT'), greaterThan(glosses.indexOf('FEVER')));
+    },
+  );
+
+  test('ASL keeps main-clause negation when an if-clause follows it', () {
+    final glosses = SignGlossMapper.signSequence(
+      'Do not hesitate to read film reviews online if you are struggling to '
+          'understand the complex ending.',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(glosses, contains('NOT'));
+    expect(glosses.lastWhere((g) => !g.startsWith('[')), 'NOT');
+  });
+
+  test(
+    'ASL signs both negations when each half of an if sentence is negated',
+    () {
+      final glosses = SignGlossMapper.signSequence(
+        'Try not to maintain a pessimistic attitude if a casual dating match '
+            'does not lead to a relationship.',
+        'ENG',
+      ).map((t) => t.gloss).toList();
+      expect(glosses.where((g) => g == 'NOT').length, 2);
+    },
+  );
+
+  test('ASL signs a because statement with a reason, not a question', () {
+    final glosses = SignGlossMapper.signSequence(
+      'I am stuck in heavy traffic on the highway right now, so I will arrive '
+          'about twenty minutes late.',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    // The speaker gave a reason. [rh-q] WHY asks a question the caption never
+    // asked, and ME LATE alone deleted ARRIVE, TWENTY and MINUTES.
+    expect(glosses, isNot(contains('[rh-q]')));
+    expect(glosses, isNot(contains('WHY')));
+    expect(glosses, contains('SO'));
+    expect(glosses, containsAll(['ARRIVE', '20', 'MINUTE', 'LATE']));
+  });
+
+  test('ASL keeps both halves of a because clause', () {
+    final glosses = SignGlossMapper.signSequence(
+      'I want a cold coffee because the weather is incredibly hot today.',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(glosses, isNot(contains('[rh-q]')));
+    expect(glosses, isNot(contains('WHY')));
+    expect(glosses, containsAll(['COFFEE', 'WANT', 'WEATHER', 'HOT', 'VERY']));
+    expect(glosses, isNot(contains('AWFUL')));
+  });
+
+  test('ASL reads so before an adjective as an intensifier, not a junction', () {
+    final glosses = SignGlossMapper.signSequence(
+      'I received an A grade on my research paper, and I am so happy and '
+          'relieved.',
+      'ENG',
+    ).map((t) => t.gloss).toList();
+    expect(glosses, isNot(contains('[rh-q]')));
+    expect(glosses, isNot(contains('WHY')));
+    expect(glosses, containsAll(['SO', 'HAPPY', 'RELIEVED']));
+  });
+
+  test('the live preview waits for a word it can sign', () {
+    // A finished caption never comes back blank, so the rules answer an
+    // all-function-word caption with its own words. Mid-sentence that answer is
+    // a word the final pass drops, so the live run skips it until content
+    // arrives.
+    expect(SignGlossMapper.hasLiveSigns('The', 'ENG'), isFalse);
+    expect(SignGlossMapper.hasLiveSigns('A the', 'ENG'), isFalse);
+    expect(SignGlossMapper.hasLiveSigns('The weather', 'ENG'), isTrue);
+    expect(SignGlossMapper.signSequence('The', 'ENG'), isNotEmpty);
+  });
+
+  test('ISL signs Hindi words a phrase sentence used to hide', () {
+    // These words were only reachable through a whole-sentence phrase rule, so
+    // a caption that is not one of those lines — or a prefix of one — came back
+    // as Devanagari with no sign behind it.
+    expect(
+      SignGlossMapper.signSequence('मुझे एक कप', 'HI').map((t) => t.gloss).toList(),
+      ['ME', 'CUP'],
+    );
+    expect(
+      SignGlossMapper.signSequence('नल से पानी टपक', 'HI')
+          .map((t) => t.gloss)
+          .toList(),
+      containsAll(['WATER', 'DRIP']),
+    );
+    expect(
+      SignGlossMapper.signSequence('आधार कार्ड की फोटोकॉपी चाहिए', 'HI')
+          .map((t) => t.gloss)
+          .toList(),
+      containsAll(['AADHAAR', 'CARD', 'XEROX']),
+    );
+  });
+
+  test('ISL reads Devanagari digits as numbers', () {
+    final glosses = SignGlossMapper.signSequence(
+      'कल मीटिंग सुबह १०',
+      'HI',
+    ).map((t) => t.gloss).toList();
+    expect(glosses, containsAll(['MEETING', '10']));
   });
 }

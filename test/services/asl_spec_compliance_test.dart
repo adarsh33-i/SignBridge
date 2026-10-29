@@ -40,9 +40,10 @@ void main() {
     expect(gloss('Are you Deaf?'), ['[y/n-q]', 'YOU', 'DEAF', 'YOU']);
     final late = gloss('I am late because traffic was heavy');
     expect(late, contains('LATE'));
-    expect(late, contains('[rh-q]'));
-    expect(late, contains('WHY'));
+    expect(late, contains('REASON'));
     expect(late, contains('TRAFFIC'));
+    expect(late, isNot(contains('[rh-q]')));
+    expect(late, isNot(contains('WHY')));
     expect(gloss('I cannot cook'), ['ME', 'COOK', 'CANNOT', '[headshake]']);
   });
 

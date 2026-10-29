@@ -46,6 +46,29 @@ abstract final class SignLanguageCatalog {
     return tokens;
   }
 
+  /// Whether this caption has a word the rules can sign. While a speaker is
+  /// still talking, a prefix that is only function words — `The`, `A the` — has
+  /// no content yet, and the never-empty rule would have the avatar spell it out
+  /// only for the finished sentence to drop it. The live run asks this first and
+  /// waits for content instead.
+  static bool hasSignableContent(String transcript, String languageCode) {
+    final clauses = transcript
+        .split(RegExp(r'[.!?]+'))
+        .map((c) => c.trim())
+        .where((c) => c.isNotEmpty);
+    for (final clause in clauses) {
+      final prepared = SpokenTextPrep.normalizeForGloss(clause, languageCode);
+      var words = splitWords(prepared);
+      if (words.isEmpty) {
+        words = splitWords(clause);
+      }
+      if (words.any(SignGrammarEngine.isContentWord)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   static bool _clauseIsQuestion(String clause) {
     final trimmed = clause.trim();
     if (trimmed.endsWith('?')) {
@@ -73,7 +96,12 @@ abstract final class SignLanguageCatalog {
       return const [];
     }
 
-    final isWhQuestion = _isWhQuestion(rawWords);
+    // A wh-word only makes a question when the clause asks one. "how scary the
+    // movie was" and "the actor who later won" are statements that happen to
+    // contain a wh-word, and must keep their FINISH.
+    final isWhQuestion =
+        _isWhQuestion(rawWords) &&
+        (clauseIsQuestion || _startsWithWhWord(rawWords));
     final isYesNoQuestion = clauseIsQuestion && !isWhQuestion;
 
     final words = SignGrammarEngine.applyRules(
@@ -389,5 +417,17 @@ abstract final class SignLanguageCatalog {
       }
     }
     return false;
+  }
+
+  /// A wh-word at the front asks a question even without a `?`, which is how
+  /// speech recognition usually hands it over ("how are you").
+  static bool _startsWithWhWord(List<String> rawWords) {
+    if (rawWords.isEmpty) {
+      return false;
+    }
+    final first = normalize(rawWords.first);
+    return AslGrammarRules.questionWords.contains(first) ||
+        first == 'how-much' ||
+        first == 'how-many';
   }
 }

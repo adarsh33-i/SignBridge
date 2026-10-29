@@ -431,6 +431,14 @@ TAMIL_SUPPLEMENT = {
     "தமிழ்": "tamil",
     "ஆங்கிலம்": "english",
     "இந்தி": "hindi",
+    # Words the phrase corpus only reaches inside a full sentence, so a partial
+    # caption (what the live preview sends mid-speech) left them untranslated.
+    "சுடுதண்ணீரா": "hot water",
+    "இந்திய": "indian",
+    "சைகை": "sign",
+    "மொழி": "language",
+    "முறை": "time",
+    "மீட்டிங்": "meeting",
 }
 
 MALAYALAM_SUPPLEMENT = {
@@ -779,6 +787,12 @@ MALAYALAM_SUPPLEMENT = {
     "മലയാളം": "malayalam",
     "ഇംഗ്ലീഷ്": "english",
     "ഹിന്ദി": "hindi",
+    # Words the phrase corpus only reaches inside a full sentence, so a partial
+    # caption (what the live preview sends mid-speech) left them untranslated.
+    "മണിക്ക്": "o'clock",
+    "രണ്ടുതവണ": "two times",
+    "മീറ്റിംഗ്": "meeting",
+    "കടം": "borrow",
 }
 
 CHILLU = {

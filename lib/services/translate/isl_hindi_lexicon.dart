@@ -596,6 +596,44 @@ abstract final class IslHindiLexicon {
     'का': '',
     'की': '',
     'के': '',
+    // Everyday Hindi words the master vocabulary CSV does not carry. They are
+    // only reachable through whole-sentence phrase matches, so a caption that
+    // is not one of those lines — or a prefix of one, which is what the live
+    // preview sends mid-sentence — left them unsigned. The English gloss is the
+    // one the phrase corpus already uses for the word.
+    'दिल्ली': 'delhi',
+    'मुंबई': 'mumbai',
+    'ऑफिस': 'office',
+    'दफ्तर': 'office',
+    'शर्ट': 'shirt',
+    'फॉर्म': 'form',
+    'खून': 'blood',
+    'सरकारी': 'government',
+    'आधार': 'aadhaar',
+    'मीटिंग': 'meeting',
+    'शनिवार': 'saturday',
+    'गणित': 'math',
+    'कार्ड': 'card',
+    'आईएसएल': 'isl',
+    'बाहर': 'outside',
+    'ऑनलाइन': 'online',
+    'साइज': 'size',
+    'कप': 'cup',
+    'रसोई': 'kitchen',
+    'ट्रेन': 'train',
+    'बैंक': 'bank',
+    'पेपर': 'paper',
+    'पेन': 'pen',
+    'फीस': 'fees',
+    'पेट': 'stomach',
+    'पेमेंट': 'payment',
+    'क्वालिटी': 'quality',
+    'नोट्स': 'notes',
+    'अंक': 'marks',
+    'हस्ताक्षर': 'sign',
+    'फोटोकॉपी': 'xerox',
+    'सीट': 'seat',
+    'जन्मदिन': 'birthday',
   };
 
   static String? englishFor(String hindiWord) {

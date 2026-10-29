@@ -7,7 +7,6 @@ import 'package:sign_bridge/services/translate/english_lexicon.dart';
 import 'package:sign_bridge/services/translate/sign_gloss_mapper.dart';
 
 final _glossAliases = <String, String>{
-  'SHOP_2': 'SHOP',
   'STARBUCKS': 'CAFE',
   'TELEPHONE': 'PHONE',
   'DIRECTOR': 'MANAGER',
@@ -15,7 +14,6 @@ final _glossAliases = <String, String>{
   'BOSS': 'CAPTAIN',
   'POLICE': 'SECURITY',
   'SUMMON': 'ASK',
-  'TALL_2': 'TALL',
   'OCLOCK-NUMBER': '10',
   'TEN': '10',
   'BOTH': '2',

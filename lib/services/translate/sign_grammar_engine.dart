@@ -110,7 +110,10 @@ abstract final class SignGrammarEngine {
     'वह': 'ix',
   };
 
-  static const _irregularPast = {
+  /// Irregular past forms folded onto a base verb before the lexicon is asked.
+  /// Public because the caption audit reads them to tell a documented lemma
+  /// from a sign the engine invented; nothing here changes engine behaviour.
+  static const irregularPast = {
     'went': 'go',
     'ate': 'eat',
     'saw': 'see',
@@ -125,10 +128,41 @@ abstract final class SignGrammarEngine {
     'began': 'begin',
     'happened': 'happen',
     'told': 'tell',
+    // Forms whose participle spelling is the same word but that reach this
+    // table because they are not in [irregularPastParticiple].
+    'found': 'find',
+    'felt': 'feel',
+    'brought': 'bring',
+    'caught': 'catch',
+    'fought': 'fight',
+    'drew': 'draw',
+    'flew': 'fly',
+    'grew': 'grow',
+    'knew': 'know',
+    'threw': 'throw',
+    'wrote': 'write',
+    'wore': 'wear',
+    'chose': 'choose',
+    'drove': 'drive',
+    'rode': 'ride',
+    'rose': 'rise',
+    'spoke': 'speak',
+    'broke': 'break',
+    'stole': 'steal',
+    'forgot': 'forget',
+    'slept': 'sleep',
+    'drank': 'drink',
+    'sang': 'sing',
+    'rang': 'ring',
+    'sat': 'sit',
+    'fed': 'feed',
+    'led': 'lead',
+    'hung': 'hang',
+    'swept': 'sweep',
   };
 
   /// Past participles after auxiliary HAVE (lemmatize; FINISH marks completion).
-  static const _irregularPastParticiple = {
+  static const irregularPastParticiple = {
     'decided': 'decide',
     'flabbergasted': 'flabbergasted',
     'eaten': 'eat',
@@ -223,6 +257,192 @@ abstract final class SignGrammarEngine {
     'progress',
   };
 
+  /// `-ed` words this corpus uses as a modifier, not as the clause's verb:
+  /// "limited data", "detailed charts", "a trained operator". Without this
+  /// list the clause gets a FINISH it never earned.
+  static const _participleAdjectives = {
+    'advanced',
+    'anticipated',
+    'automated',
+    'balanced',
+    'based',
+    'bored',
+    'checked',
+    'complicated',
+    'cooked',
+    'corrupted',
+    'covered',
+    'crowded',
+    'damaged',
+    'dedicated',
+    'detailed',
+    'excited',
+    'experienced',
+    'extended',
+    'focused',
+    'interested',
+    'involved',
+    'limited',
+    'missed',
+    'overcrowded',
+    'polluted',
+    'printed',
+    'processed',
+    'proposed',
+    'qualified',
+    'related',
+    'satisfied',
+    'scared',
+    'seated',
+    'settled',
+    'skilled',
+    'specialized',
+    'structured',
+    'surprised',
+    'talented',
+    'tired',
+    'trained',
+    'flabbergasted',
+    'unexpected',
+    'unplanned',
+    'worried',
+  };
+
+  /// Words that follow a participle rather than a finite past verb:
+  /// "based on", "covered in", "printed at".
+  static const _participleFollowers = {
+    'on',
+    'in',
+    'at',
+    'with',
+    'by',
+    'from',
+    'of',
+    'under',
+  };
+
+  static const _determiners = {
+    'a',
+    'an',
+    'the',
+    'this',
+    'that',
+    'these',
+    'those',
+    'my',
+    'your',
+    'his',
+    'her',
+    'its',
+    'our',
+    'their',
+    'every',
+    'each',
+    'some',
+    'any',
+    'no',
+    'all',
+    'most',
+    'another',
+    'such',
+    'both',
+    'several',
+    'many',
+    'few',
+  };
+
+  static const _degreeAdverbs = {
+    'quite',
+    'very',
+    'really',
+    'so',
+    'too',
+    'extremely',
+    'highly',
+    'completely',
+    'utterly',
+    'truly',
+    'totally',
+    'absolutely',
+    'incredibly',
+    'rather',
+    'somewhat',
+    'fairly',
+    'pretty',
+  };
+
+  /// Verbs with no passive reading, so an `-ed` form after a noun is the
+  /// clause's verb even when a preposition follows: "the ships arrived at".
+  static const _intransitiveVerbs = {
+    'agree',
+    'appear',
+    'arrive',
+    'belong',
+    'change',
+    'collapse',
+    'complain',
+    'continue',
+    'cry',
+    'decrease',
+    'depart',
+    'die',
+    'disappear',
+    'emerge',
+    'end',
+    'escape',
+    'exist',
+    'explode',
+    'fail',
+    'finish',
+    'go',
+    'graduate',
+    'happen',
+    'improve',
+    'increase',
+    'insist',
+    'land',
+    'laugh',
+    'leave',
+    'live',
+    'marry',
+    'occur',
+    'participate',
+    'perform',
+    'rain',
+    'recover',
+    'relax',
+    'retire',
+    'return',
+    'rise',
+    'snow',
+    'speak',
+    'stay',
+    'struggle',
+    'succeed',
+    'survive',
+    'talk',
+    'travel',
+    'vanish',
+    'wait',
+    'work',
+  };
+
+  /// Time words that put the clause in the past on their own. A neutral time
+  /// word ("tonight", "this weekend") does not: "I bought ... this weekend"
+  /// still needs FINISH, or the gloss reads as a plan.
+  static const _pastTimeWords = {
+    'yesterday',
+    'ago',
+    'earlier',
+    'before',
+    'recently',
+    'previously',
+    'last',
+    'past',
+    'once',
+    'then',
+  };
+
   static List<String> applyRules(
     List<String> words,
     SignLanguageSystem system, {
@@ -239,6 +459,11 @@ abstract final class SignGrammarEngine {
 
     var sawPast = false;
     var sawFuture = false;
+    // Where the past evidence and the future marker sit in the caption. A
+    // future clause only hides a participle ("items left inside", "grade
+    // entered on"); a finite past verb before the auxiliary still happened.
+    var firstPastAt = -1;
+    var firstFutureAt = -1;
     var sawNegation = false;
     var sawCannot = false;
     var sawMust = false;
@@ -267,15 +492,25 @@ abstract final class SignGrammarEngine {
       final nextClean = i + 1 < expanded.length ? _strip(expanded[i + 1]) : '';
       if (clean == 'going' && nextClean == 'to') {
         sawFuture = true;
+        if (firstFutureAt < 0) firstFutureAt = i;
         continue;
       }
       if (clean == 'will' || clean == 'shall') {
         sawFuture = true;
+        if (firstFutureAt < 0) firstFutureAt = i;
         continue;
       }
 
       if (clean == 'must') {
         sawMust = true;
+        continue;
+      }
+
+      // `did` is the past auxiliary: "did not originate" and "did you watch"
+      // both state a past event even though the auxiliary itself has no sign.
+      if (clean == 'did') {
+        sawPast = true;
+        if (firstPastAt < 0) firstPastAt = i;
         continue;
       }
 
@@ -290,10 +525,16 @@ abstract final class SignGrammarEngine {
               clean == 'था' ||
               clean == 'थे')) {
         sawPast = true;
+        if (firstPastAt < 0) firstPastAt = i;
         continue;
       }
 
       if (clean == 'have' || clean == 'has' || clean == 'had') {
+        // "had to terminate" is a past obligation, not a perfect aspect.
+        if (clean == 'had') {
+          sawPast = true;
+          if (firstPastAt < 0) firstPastAt = i;
+        }
         final next = _nextContentWord(expanded, i);
         if (next != null && _isHaveAuxiliaryParticiple(next)) {
           sawHaveAuxiliary = true;
@@ -361,7 +602,14 @@ abstract final class SignGrammarEngine {
       }
 
       final lemma = _lemmatize(clean, system: system);
-      sawPast = sawPast || lemma.wasPast;
+      // A participle spelling is the simple past too ("I bought", "we found"),
+      // so it marks the clause past unless a determiner or auxiliary in front
+      // of it makes it a modifier or a perfect ("my lost wallet", "have lost").
+      final finitePast =
+          (clean.endsWith('ed') || irregularPastParticiple.containsKey(clean)) &&
+          isFinitePastSurface(expanded, i);
+      if ((lemma.wasPast || finitePast) && firstPastAt < 0) firstPastAt = i;
+      sawPast = sawPast || lemma.wasPast || finitePast;
       processed.add(lemma.word);
     }
 
@@ -377,6 +625,37 @@ abstract final class SignGrammarEngine {
     if (system == SignLanguageSystem.isl) {
       processed = _applyIslNumericalIncorporation(processed);
     }
+
+    // Which half of an `if` sentence carried the negation. The reorder fronts
+    // the condition, so a clause-final NOT would then negate the main clause
+    // instead of the condition: condition negation has to stay in place.
+    var expandedIfIdx = -1;
+    var negBeforeIf = false;
+    var negAfterIf = false;
+    for (var i = 0; i < expanded.length; i++) {
+      final clean = _strip(expanded[i]);
+      if (clean == 'if') {
+        if (expandedIfIdx < 0) {
+          expandedIfIdx = i;
+        }
+        continue;
+      }
+      final isNeg =
+          _negationWords.contains(clean) ||
+          clean == 'cannot' ||
+          clean == 'cant';
+      if (!isNeg) {
+        continue;
+      }
+      if (expandedIfIdx >= 0 && i > expandedIfIdx) {
+        negAfterIf = true;
+      } else {
+        negBeforeIf = true;
+      }
+    }
+    final negInCondition = sawNegation && negAfterIf;
+    final appendClauseFinalNegation =
+        sawNegation && (expandedIfIdx < 0 || negBeforeIf);
 
     var result = switch (system) {
       SignLanguageSystem.asl => _applyAslRules(processed, negated: sawNegation),
@@ -413,15 +692,30 @@ abstract final class SignGrammarEngine {
       result = _mergePedagogicalCompounds(result);
       result = _dropTemporalAfter(result);
       final hasTimeAnchor = _containsTimeWord(result);
-      if (sawPast && !hasTimeAnchor && !_containsWhWord(result)) {
+      // Only a past-specific time word replaces FINISH. "I bought a ticket
+      // this weekend" keeps FINISH; "I bought it yesterday" does not need it.
+      final hasPastAnchor = _containsPastTimeWord(result);
+      // A wh-word inside a statement ("...how scary the movie was") does not
+      // make it a question; only a real question face may drop FINISH.
+      // A future clause's -ed word is a participle ("grade entered on the
+      // form"), so it must not append the past marker; a past verb before the
+      // auxiliary still did happen.
+      final pastBeforeFuture = firstFutureAt < 0 || firstPastAt < firstFutureAt;
+      if (pastBeforeFuture &&
+          sawPast &&
+          !hasPastAnchor &&
+          !isWhQuestion &&
+          !isYesNoQuestion) {
         result = [...result, 'finish'];
-      } else if (sawHaveAuxiliary &&
+      } else if (pastBeforeFuture &&
+          sawHaveAuxiliary &&
           !sawNegation &&
           !hasTimeAnchor &&
           !_containsWhWord(result) &&
           !result.contains('finish')) {
         result = [...result, 'finish'];
-      } else if (_hasEdPastSurface(expanded) &&
+      } else if (pastBeforeFuture &&
+          _hasEdPastSurface(expanded) &&
           hasTimeAnchor &&
           !result.contains('finish') &&
           !_containsWhWord(result) &&
@@ -432,11 +726,17 @@ abstract final class SignGrammarEngine {
       result = _applyNounAdjectiveOrder(result);
       final forgetImperative =
           result.contains('forget') && result.contains('not');
-      final ifClauseNeg = sawNegation && result.contains('if');
+      if (negInCondition &&
+          !result.contains('not') &&
+          !result.contains('not-can') &&
+          !result.contains('cannot')) {
+        result = _insertNotInCondition(result, processed);
+      }
       result = _applyPostFixNegation(
         result,
-        sawNegation: sawNegation && !forgetImperative && !ifClauseNeg,
+        appendNegation: appendClauseFinalNegation && !forgetImperative,
         sawCannot: sawCannot,
+        keepInPlace: negInCondition,
       );
       result = _applySpatialLoci(result);
       result = _applyFullNmmMarkers(
@@ -451,6 +751,7 @@ abstract final class SignGrammarEngine {
         isYesNoQuestion: isYesNoQuestion,
       );
       result = _dropStrayIxAfterIf(result);
+      result = _restoreLeadingTimePhrase(processed, result);
       // Never-empty guarantee: a clause that misses every accepted ASL
       // pattern still carries content words, so emit best-effort output
       // instead of collapsing to an empty gloss the avatar cannot play.
@@ -1130,7 +1431,9 @@ abstract final class SignGrammarEngine {
         if (main.isNotEmpty && main.first == 'call') {
           main = [...main.sublist(1), 'call'];
         }
-        if (main.contains('pass') && main.contains('me')) {
+        if (main.contains('pass') &&
+            main.contains('me') &&
+            _recipeSaysAll(main, {'white', 'sugar', 'pass', 'please'})) {
           main = ['white', 'sugar', 'pass-me', 'please'];
         }
         return [
@@ -1145,17 +1448,17 @@ abstract final class SignGrammarEngine {
     if (becauseOfIdx >= 0) {
       final main = words.sublist(0, becauseOfIdx);
       final reason = words.sublist(becauseOfIdx + 2);
-      return _rhetoricalWhyClause(main, reason);
+      return _reasonClause(main, 'because', reason);
     }
 
     final becauseIdx = words.indexOf('because');
     if (becauseIdx > 0) {
       final main = words.sublist(0, becauseIdx);
       final reason = words.sublist(becauseIdx + 1);
-      return _rhetoricalWhyClause(main, reason);
+      return _reasonClause(main, 'because', reason);
     }
 
-    final soIdx = words.indexOf('so');
+    final soIdx = _indexOfClauseConjunctionSo(words);
     if (soIdx > 0) {
       final cause = words.sublist(0, soIdx);
       final result = words.sublist(soIdx + 1);
@@ -1163,10 +1466,33 @@ abstract final class SignGrammarEngine {
         final rest = result.where((w) => w != 'not' && w != 'forget').toList();
         return [..._reorderSubclause(cause), ...rest, 'forget', 'not'];
       }
-      return _rhetoricalWhyClause(cause, result);
+      return _reasonClause(cause, 'so', result);
     }
 
     return null;
+  }
+
+  /// "so" either joins two clauses ("… so I will arrive late") or intensifies the
+  /// word after it ("so stressed", "so happy"). Only the junction starts a
+  /// reason clause; an intensifier stays where the speaker put it.
+  static int _indexOfClauseConjunctionSo(List<String> words) {
+    for (var i = 1; i < words.length; i++) {
+      if (words[i] != 'so') {
+        continue;
+      }
+      if (i + 1 >= words.length) {
+        return i;
+      }
+      final next = words[i + 1];
+      if (_isSubjectPronoun(next) ||
+          _looksLikeVerb(next) ||
+          next == 'now' ||
+          next == 'then' ||
+          next == 'there') {
+        return i;
+      }
+    }
+    return -1;
   }
 
   static List<String> _reorderIfCondition(List<String> condition) {
@@ -1178,29 +1504,38 @@ abstract final class SignGrammarEngine {
       return [...topics, 'you', 'find', 'not-can'];
     }
     if (stripped.contains('bitter')) {
-      return ['espresso', 'bitter', 'too-much'];
-    }
-    if (stripped.contains('taste') && stripped.contains('bitter')) {
-      return ['espresso', 'bitter', 'too-much'];
+      return _recipeSaysAll(stripped, {'espresso', 'bitter', 'too-much'})
+          ? ['espresso', 'bitter', 'too-much']
+          : _reorderSubclause(stripped);
     }
     if (stripped.contains('not') && stripped.contains('drop')) {
       final topics = stripped.where((w) => w != 'not' && w != 'drop').toList();
       return [...topics, 'drop', 'not'];
     }
     if (stripped.contains('valid') && stripped.contains('it')) {
-      return ['your', 'coupon', 'valid'];
+      return _recipeSaysAll(stripped, {'coupon', 'valid'})
+          ? ['your', 'coupon', 'valid']
+          : _reorderSubclause(stripped);
     }
     if (stripped.contains('lose') && stripped.contains('receipt')) {
-      return ['paper', 'receipt', 'you', 'lose'];
+      return _recipeSaysAll(stripped, {'paper', 'receipt', 'lose'})
+          ? ['paper', 'receipt', 'you', 'lose']
+          : _reorderSubclause(stripped);
     }
     if (stripped.contains('steal') && stripped.contains('item')) {
-      return ['customer', 'item', 'steal'];
+      return _recipeSaysAll(stripped, {'customer', 'item', 'steal'})
+          ? ['customer', 'item', 'steal']
+          : _reorderSubclause(stripped);
     }
     if (stripped.contains('travel') && stripped.contains('internationally')) {
-      return ['international', 'travel', 'you'];
+      return _recipeSaysAll(stripped, {'international', 'travel'})
+          ? ['international', 'travel', 'you']
+          : _reorderSubclause(stripped);
     }
     if (stripped.contains('expired') && stripped.contains('visa')) {
-      return ['entry', 'visa', 'expired'];
+      return _recipeSaysAll(stripped, {'entry', 'visa', 'expired'})
+          ? ['entry', 'visa', 'expired']
+          : _reorderSubclause(stripped);
     }
     return _reorderSubclause(stripped);
   }
@@ -1221,7 +1556,9 @@ abstract final class SignGrammarEngine {
     if (mainOrdered.contains('breakfast') && mainOrdered.contains('miss')) {
       return ['breakfast', 'me', 'miss'];
     }
-    if (mainOrdered.contains('cup') && mainOrdered.contains('bring')) {
+    if (mainOrdered.contains('cup') &&
+        mainOrdered.contains('bring') &&
+        _recipeSaysAll(mainOrdered, {'own', 'cup', 'clean', 'bring'})) {
       return ['your', 'own', 'cup', 'clean', 'you', 'bring'];
     }
     if (mainOrdered.isNotEmpty && mainOrdered.first == 'will') {
@@ -1703,7 +2040,7 @@ abstract final class SignGrammarEngine {
     if (clean == 'been' || clean == 'had') {
       return true;
     }
-    if (_irregularPastParticiple.containsKey(clean)) {
+    if (irregularPastParticiple.containsKey(clean)) {
       return true;
     }
     if (clean.endsWith('en') && clean.length > 3) {
@@ -2094,7 +2431,7 @@ abstract final class SignGrammarEngine {
   static bool _hasEdPastSurface(List<String> words) {
     for (final word in words) {
       final clean = _strip(word);
-      if (_irregularPast.containsKey(clean)) {
+      if (irregularPast.containsKey(clean)) {
         continue;
       }
       if (clean.length > 4 && clean.endsWith('ed')) {
@@ -2141,38 +2478,138 @@ abstract final class SignGrammarEngine {
     return words;
   }
 
+  /// Intensifiers a recipe may fold into VERY. Each of these already resolves
+  /// to VERY in the ASL lexicon, so folding changes no sign the viewer sees.
+  static const _veryWords = {'very', 'quite', 'incredibly'};
+
+  /// Intensifiers folded into SEVERE, same reason.
+  static const _severeWords = {'badly', 'severely'};
+
+  /// Whether a fixed-order recipe can speak everything the clause says. Subjects
+  /// may fold into pointing or a loci, and a tense or negation marker only moves,
+  /// so neither counts as content; any other word the recipe cannot name means it
+  /// would delete content, so the recipe must not run.
+  static bool _recipeSaysAll(List<String> words, Set<String> said) {
+    for (final word in words) {
+      if (word.isEmpty ||
+          AslNmmMarkers.isMarker(word) ||
+          AslGrammarRules.grammarMarkers.contains(word)) {
+        continue;
+      }
+      if (said.contains(word) || _isSubjectPronoun(word)) {
+        continue;
+      }
+      return false;
+    }
+    return true;
+  }
+
+  /// The tense and negation markers a clause carries. A recipe re-places them,
+  /// it never removes them.
+  static List<String> _carriedMarkers(List<String> words) =>
+      words.where(AslGrammarRules.grammarMarkers.contains).toList();
+
+  /// A fixed-order clause that ends in a degree sign. The caption's intensifier
+  /// is absorbed into that sign (VERY/SEVERE); a clause saying anything else
+  /// falls through to the generic reorder so its words survive.
+  static List<String> _compactDegreeClause(
+    List<String> words,
+    List<String> order,
+    Set<String> said, {
+    required String degree,
+    required Set<String> degreeWords,
+  }) {
+    if (!_recipeSaysAll(words, {...said, ...degreeWords})) {
+      return words;
+    }
+    final intense = words.any(degreeWords.contains);
+    return [
+      ...order,
+      if (intense) degree,
+      ..._carriedMarkers(words),
+    ];
+  }
+
   /// RUNNING LATE FOR WORK → WORK ME LATE (drop redundant RUN).
   static List<String> _compactRunningLateReason(List<String> words) {
     if (words.contains('late') &&
         words.contains('me') &&
         !words.contains('work')) {
-      return ['me', 'late'];
+      return _recipeSaysAll(words, {'late'})
+          ? ['me', 'late', ..._carriedMarkers(words)]
+          : words;
     }
     if (words.contains('late') && words.contains('work')) {
-      return ['work', 'me', 'late'];
+      return _recipeSaysAll(words, {'late', 'work'})
+          ? ['work', 'me', 'late', ..._carriedMarkers(words)]
+          : words;
     }
     if (words.contains('wake-up') || words.contains('wake')) {
-      return ['this', 'morning', 'me', 'wake-up', 'late'];
+      // `woke up` is the WAKE-UP sign, so the particle is part of it.
+      if (!_recipeSaysAll(words, {
+        'wake-up',
+        'wake',
+        'up',
+        'late',
+        'this',
+        'morning',
+        ..._veryWords,
+      })) {
+        return words;
+      }
+      return [
+        if (words.contains('this')) 'this',
+        if (words.contains('morning')) 'morning',
+        'me',
+        'wake-up',
+        if (words.contains('late')) 'late',
+        if (words.any(_veryWords.contains)) 'very',
+        ..._carriedMarkers(words),
+      ];
     }
     return words;
   }
 
   static List<String> _compactWeatherReason(List<String> words) {
     if (words.contains('weather') && words.contains('hot')) {
-      return ['today', 'weather', 'hot', 'awful'];
+      return _compactDegreeClause(
+        words,
+        const ['today', 'weather', 'hot'],
+        const {'today', 'weather', 'hot'},
+        degree: 'very',
+        degreeWords: _veryWords,
+      );
     }
     return words;
   }
 
   static List<String> _compactPainReason(List<String> words) {
     if (words.contains('tongue') && words.contains('burn')) {
-      return ['my', 'tongue', 'burn', 'severe'];
+      return _compactDegreeClause(
+        words,
+        const ['my', 'tongue', 'burn'],
+        const {'tongue', 'burn'},
+        degree: 'severe',
+        degreeWords: _severeWords,
+      );
     }
     if (words.contains('chest') && words.contains('pain')) {
-      return ['my', 'chest', 'pain', 'severe'];
+      return _compactDegreeClause(
+        words,
+        const ['my', 'chest', 'pain'],
+        const {'chest', 'pain'},
+        degree: 'severe',
+        degreeWords: _severeWords,
+      );
     }
     if (words.contains('throat') && words.contains('dry')) {
-      return ['my', 'throat', 'dry', 'awful'];
+      return _compactDegreeClause(
+        words,
+        const ['my', 'throat', 'dry'],
+        const {'throat', 'dry'},
+        degree: 'very',
+        degreeWords: _veryWords,
+      );
     }
     return words;
   }
@@ -2389,6 +2826,41 @@ abstract final class SignGrammarEngine {
     return [...subjects, ...verbs, ...questions];
   }
 
+  /// ASL signs time first. A recipe may leave the phrase where English put it,
+  /// so a caption that opens with time ("Every Saturday morning, I ...") gets
+  /// that phrase back at the front of the gloss.
+  static List<String> _restoreLeadingTimePhrase(
+    List<String> source,
+    List<String> gloss,
+  ) {
+    final lead = <String>[];
+    for (final word in source) {
+      final clean = _strip(word);
+      if (!_isTimeWord(clean)) break;
+      lead.add(clean);
+    }
+    if (lead.isEmpty || gloss.length < lead.length) return gloss;
+    var alreadyFirst = true;
+    for (var i = 0; i < lead.length; i++) {
+      if (gloss[i] != lead[i]) {
+        alreadyFirst = false;
+        break;
+      }
+    }
+    if (alreadyFirst) return gloss;
+    final rest = <String>[];
+    var matched = 0;
+    for (final word in gloss) {
+      if (matched < lead.length && word == lead[matched]) {
+        matched++;
+        continue;
+      }
+      rest.add(word);
+    }
+    if (matched < lead.length) return gloss;
+    return [...lead, ...rest];
+  }
+
   static List<String> _moveAllTimeToFront(List<String> words) {
     for (var i = 0; i < words.length - 2; i++) {
       final n = _parseCardinal(words[i]);
@@ -2446,6 +2918,85 @@ abstract final class SignGrammarEngine {
 
   static bool _containsTimeWord(List<String> words) {
     return words.any(_isTimeWord);
+  }
+
+  /// Whether a word is one of the time anchors the grammar orders first.
+  static bool isTimeWord(String word) => _isTimeWord(word);
+
+  static bool _containsPastTimeWord(List<String> words) {
+    return words.any(isPastTimeWord);
+  }
+
+  /// Whether a word names a past time frame on its own, so the clause needs no
+  /// FINISH sign.
+  static bool isPastTimeWord(String word) =>
+      _pastTimeWords.contains(_strip(word));
+
+  /// Words that end in `-ed` but are not past forms at all. Without this list
+  /// "speed", "need" and "proceed" would each make their clause past.
+  static const _notPastEdWords = {
+    'bed',
+    'embed',
+    'exceed',
+    'feed',
+    'hundred',
+    'indeed',
+    'need',
+    'proceed',
+    'red',
+    'sacred',
+    'shed',
+    'sled',
+    'speed',
+    'succeed',
+    'weed',
+  };
+
+  /// Whether the `-ed` word at [i] is the clause's finite verb rather than a
+  /// modifier. "They sorted columns" is past; "such limited data" and
+  /// "based on" are not, and must not earn a FINISH.
+  ///
+  /// Public because `caption_gloss_audit_test.dart` must measure the same
+  /// definition of a past clause the engine acts on.
+  static bool isFinitePastSurface(List<String> words, int i) {
+    final clean = _strip(words[i]);
+    if (clean.contains('-') ||
+        _participleAdjectives.contains(clean) ||
+        _notPastEdWords.contains(clean)) {
+      return false;
+    }
+    if (i == 0) {
+      return false;
+    }
+    // "am quite bewildered" is a copula + adjective, not a past verb, so skip
+    // the adverbs between the auxiliary and the -ed word.
+    var before = i - 1;
+    while (before > 0 && _degreeAdverbs.contains(_strip(words[before]))) {
+      before--;
+    }
+    final previous = _strip(words[before]);
+    // "haven't decided" is a participle under the auxiliary, but "had" already
+    // marked the clause past on its own.
+    if (previous == 'not' || previous == 'never') {
+      return false;
+    }
+    if (_determiners.contains(previous) ||
+        _beWords.contains(previous) ||
+        previous == 'have' ||
+        previous == 'has' ||
+        previous == 'had' ||
+        _parseCardinal(previous) != null) {
+      return false;
+    }
+    if (i + 1 < words.length &&
+        _participleFollowers.contains(_strip(words[i + 1]))) {
+      // "the controls used in" is a reduced relative, but "the ships arrived
+      // at" is the clause's verb: an intransitive verb cannot modify a noun
+      // that way, so the preposition does not demote it.
+      final stem = _stemFromEd(clean);
+      if (stem == null || !_intransitiveVerbs.contains(stem)) return false;
+    }
+    return true;
   }
 
   static bool _isTimeWord(String word) {
@@ -2531,6 +3082,18 @@ abstract final class SignGrammarEngine {
 
   static bool _isOmitted(String clean) => _omittedWords.contains(clean);
 
+  /// Whether a word says something a gloss can sign. Articles, prepositions,
+  /// auxiliaries and case markers do not, so a clause made only of them has no
+  /// content yet — which is how a dictation prefix like `The` is told apart
+  /// from a caption.
+  static bool isContentWord(String word) {
+    final clean = _strip(word);
+    if (clean.isEmpty) {
+      return false;
+    }
+    return !_isOmitted(clean) && !_negationWords.contains(clean);
+  }
+
   static String _strip(String word) {
     var clean = word.toLowerCase().replaceAll(
       RegExp(r"^[\p{P}\p{S}']+|[\p{P}\p{S}']+$", unicode: true),
@@ -2568,12 +3131,12 @@ abstract final class SignGrammarEngine {
       return (word: progressive, wasPast: false);
     }
 
-    final participle = _irregularPastParticiple[clean];
+    final participle = irregularPastParticiple[clean];
     if (participle != null) {
       return (word: participle, wasPast: false);
     }
 
-    final irregular = _irregularPast[clean];
+    final irregular = irregularPast[clean];
     if (irregular != null) {
       return (word: irregular, wasPast: true);
     }
@@ -3789,15 +4352,17 @@ abstract final class SignGrammarEngine {
     return false;
   }
 
-  /// Rule 7: statement + [rh-q] WHY? + answer (replaces because/so conjunctions).
-  static List<String> _rhetoricalWhyClause(
+  /// Rule 7: statement + the conjunction the speaker used + reason. Turning this
+  /// into [rh-q] WHY would add a question face and a sign the caption never
+  /// said, so the junction word is kept as the gloss instead.
+  static List<String> _reasonClause(
     List<String> statement,
+    String conjunction,
     List<String> answer,
   ) {
     return [
       ..._reorderDiscourseMain(statement),
-      AslNmmMarkers.rhQ,
-      'why',
+      conjunction,
       ..._reorderSubclause(answer),
     ];
   }
@@ -3819,24 +4384,60 @@ abstract final class SignGrammarEngine {
   }
 
   /// Rule 8: post-fix NOT / CANNOT / NEVER + [headshake].
+  ///
+  /// `appendNegation` puts the polarity sign at the end of the clause, which is
+  /// where ASL puts it when the clause as a whole is negated. `keepInPlace`
+  /// preserves a NOT that the condition reorder already sat on its own verb, so
+  /// a sentence negated on both sides of `if` can carry both.
   static List<String> _applyPostFixNegation(
     List<String> words, {
-    required bool sawNegation,
+    required bool appendNegation,
     required bool sawCannot,
+    bool keepInPlace = false,
   }) {
-    if (!sawNegation && !words.contains('not') && !words.contains('not-can')) {
+    final hasInPlace = words.contains('not') || words.contains('not-can');
+    if (!appendNegation && !keepInPlace && !sawCannot && !hasInPlace) {
       return words;
     }
-    var result = words.where((w) => w != 'not' && w != 'not-can').toList();
+    var result = keepInPlace
+        ? List<String>.from(words)
+        : words.where((w) => w != 'not' && w != 'not-can').toList();
     if (sawCannot || words.contains('not-can') || words.contains('cannot')) {
       if (!result.contains('cannot')) {
         result = [...result, 'cannot'];
       }
-    } else if (sawNegation) {
+    } else if (appendNegation) {
       result = [...result, 'not'];
     }
     if (!result.contains(AslNmmMarkers.headshake)) {
       result = [...result, AslNmmMarkers.headshake];
+    }
+    return result;
+  }
+
+  /// Lands a condition clause's NOT on the condition's own verb. The condition
+  /// was fronted by the reorder, so its words sit ahead of the main clause: walk
+  /// the condition from the verb backwards and place NOT after the first word
+  /// still visible in the gloss.
+  static List<String> _insertNotInCondition(
+    List<String> result,
+    List<String> processed,
+  ) {
+    final ifIdx = processed.indexOf('if');
+    if (ifIdx < 0) {
+      return result;
+    }
+    final condition = processed.sublist(ifIdx + 1);
+    for (var c = condition.length - 1; c >= 0; c--) {
+      final word = condition[c];
+      if (word.isEmpty || AslNmmMarkers.isMarker(word)) {
+        continue;
+      }
+      for (var i = 0; i < result.length; i++) {
+        if (result[i] == word || result[i].split('-').contains(word)) {
+          return [...result.sublist(0, i + 1), 'not', ...result.sublist(i + 1)];
+        }
+      }
     }
     return result;
   }
