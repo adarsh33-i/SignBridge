@@ -88,7 +88,7 @@ than leaving the viewer to read twenty-six separate letters.
 ## Coverage is tiered
 
 1. **Authored motion** — `SignLibrary._core`. Real movement patterns: waves,
-   nods, taps, circles, repetitions. Currently 56 ids: the everyday core set,
+   nods, taps, circles, repetitions. Currently 66 ids: the everyday core set,
    the weather set (RAIN, SNOW, WIND, WINDY, CLOUD, STORM, THUNDER, LIGHTNING,
    FOG, WEATHER, COLD, HOT, SUN), and an everyday-verb set added when the gloss
    audit found words that had lost their authored sign to an alias — ASSIST,
@@ -112,6 +112,14 @@ THERMOMETER. That alias map is only for a word whose id names the very sign
 already authored. It is not for a word that merely means something close: HUG
 is not LOVE and CONSUME is not EAT, so those get their own animation.
 
+Two glosses used to fall through to letters and now carry their own motion. IX,
+the ASL pointer that stands for "that one there", is solved to a place with
+`armTo` — elbow out, forearm back down, index aimed away from the body — because
+the arm is too long for the card to point straight sideways with a straight
+elbow, and a lateral point would have to reach x 0.96. NOT keeps NO's snap and
+changes only the hand to the curled N over the thumb: ASL writes negation twice
+over, and spelling N-O-T made every negated sentence trail into letters.
+
 Weather signs are authored as handshape plus one direction, held for two passes,
 because a caption strings four or five of them together and a longer path stops
 reading as a sign. That makes near-duplicates the failure mode: RAIN and SNOW
@@ -119,7 +127,7 @@ shared a handshape, CLOUD/STORM/WINDY shared a silhouette, and SUN/WEATHER/
 LIGHTNING all raised one finger at the head. Each pair is now separated by the
 handshape or by the zone it moves through.
 
-`test/avatar/sign_library_test.dart` pins that no two of the 56 authored signs
+`test/avatar/sign_library_test.dart` pins that no two of the 66 authored signs
 open in the same pose. That check used to cover the weather set only; widening
 it to everything immediately found a pre-existing collision between MOTHER and
 THANK-YOU, which is now separated by MOTHER's palm.
@@ -143,18 +151,50 @@ guessing.
   deeper lays across the eyes and erases the facial grammar the signs depend on,
   so `forehead` and `temple` stop at 138 and 130 while `eye`, which only narrow
   handshapes use, goes to 146.
-- **Hand against hand.** The two hands of a `_two` pose can never actually
-  meet. Across every shoulder and elbow the rig reaches, the closest the two
-  wrists get is 0.21 of the card, and a palm is 0.078. The hanging support arm
-  these signs were originally authored over left them 0.36 apart, so the support
-  arm is now folded hard and lifted, which brings the base close enough for the
-  dominant hand to finish the gesture onto it. A mirrored `_both` pair has the
-  opposite problem: it reaches the temples at shoulder 134 with the fingertips
-  still 0.14 apart, and past 142 the two hands overlap and cross the eyes.
 
-Neither limit is fixable by authoring. Closing the hand-to-hand gap needs a
-transverse adduction term in `ArmPose` — the arm currently has one rotation
-plane plus a `lift` proxy — and that is a rig change, not a sign change.
+  Getting *on* the face turned out to be the easy half. The same raise-and-fold
+  that lands a palm on the lips parks the wrist at y 0.28 with a near-level
+  palm, so the hand lies sideways across the face and its own height sweeps the
+  eye band. Measured on a 237px render, EAT and CONSUME covered 34.7% of the
+  eyes, WATER 36.8%, BLOW 37.4%, and the two signs whose hands start at the
+  temples were far worse — HOME 66.5%, CLOUD 58.6%. The eyes are where question,
+  negation and role-shift faces live, so that coverage deleted the grammar the
+  same sign was carrying.
+
+  The lower spots now come up under the jaw instead of over the brow: `mouth`
+  146/148 and `cheek` 146/142, with each call site's `wrist` shifted about -8 to
+  keep the hand's own rotation. The flat hand that used to lie across the face
+  arrives at (0.618, 0.307) with its fingertips at the corner of the mouth, below
+  the eye band, and EAT drops to 9.9%. HOME opens its elbow to 152 and touches
+  the cheek beside the jaw (5.4%); CLOUD straightens both arms to 104 so the two
+  hands drift past the hairline beside the head rather than in front of the brow
+  (11.0%). `test/avatar/sign_library_test.dart` holds the line from here: it
+  walks the head circle for every authored animation, keeps the frame that
+  covers the most, and fails any sign over 30% of the eye band. SEE, VISION and
+  SNOW are exempt because their handshape *is* a hand over the eyes, not because
+  the rig cannot move them elsewhere.
+- **Hand against hand.** A *mirrored pair of authored angles* can never meet:
+  across every shoulder and elbow the rig reaches, the two wrists stop 0.21 of
+  the card apart and a palm is 0.078, so 19 of the two-handed signs rendered as
+  one symmetric shrug. The limit was in the authoring, not the body.
+  `AvatarPainter.armTo` inverts `armOf` — a two-link solve in the rig's own
+  angle convention, iterated because the shrug moves the shoulder joint the arm
+  is measured from — so a hand is now placed at a point and the angles fall out
+  of it. `_two` solves the non-dominant palm under the working hand, and `_both`
+  takes a `meet` distance that slides a contact pair onto the centre line while
+  keeping its authored height and palm direction. 20 of the 33 two-handed signs
+  reach silhouette contact now. The 13 that do not are the weather pair, WANT,
+  NEED and GO — two hands moving separately, which is correct — plus HUG and
+  TODAY, which are open: HUG needs each hand to land on the *far* shoulder, and
+  a centre-line meet cannot express a cross.
+
+The face limit stands, including for a solved pair: a mirrored `_both` reaches
+the temples at shoulder 134 with the fingertips still 0.14 apart, and past 142
+the two hands overlap and cross the eyes, so a two-handed face sign has a window
+about as wide as a hand. The hand-to-hand limit fell to a solve rather than a rig
+change, so `ArmPose` still has one rotation plane plus a `lift` proxy; adding a
+transverse adduction term is what would buy the crossed-arm signs, and it is a
+rig change, not a sign change.
 
 A third limit is not a rig fault and will not go away: ASL puts a great many
 signs on the forehead, so HELLO, FATHER, KNOW, RAIN, SNOW, SHOWER and WEATHER
@@ -187,7 +227,12 @@ together:
   render, 12 of the 30 authored signs lost 10-26% of the far arm's length to the
   shirt (`friend` and `name` worst, every frame), and the hand came out detached
   from its own arm. Both arms now go over the torso; the far one still goes
-  under the head, which is where a hand at the cheek belongs.
+  under the head, which is where a hand at the cheek belongs. The shirt's bib
+  and collar were the same bug one layer up: they were drawn at the end of
+  `_paintHead`, which runs *after* the back arm, so the collar ate any forearm
+  crossing the upper chest — which is every two-handed sign once its hands moved
+  into the middle of the body. They are `_paintNeck` now, called between the
+  torso and the back arm, because cloth is furniture and not foreground.
   `test/avatar/shoulder_overlap_test.dart` checks this on rendered pixels, not
   on the geometry that produces it: it walks `AvatarPainter.armOf` for both arms
   across all 30 signs and 11 timeline positions and fails if any sample of a
@@ -403,6 +448,243 @@ non-zero `mouth`, the idle layer leaves it alone, because those carry grammar.
 The player feeds it the ticker's own elapsed clock rather than the position in
 the caption, so a short caption does not blink once per word and the avatar keeps
 breathing after it has finished signing.
+
+## Fitting signs from a video
+
+The authored library covers a few hundred signs; the corpus of signer clips
+covers thousands more. `test/tools/landmark_fitter.dart` turns one clip into one
+`SignAnimation`, so a sign can be fitted from footage instead of invented.
+
+It is a library, not a script, and it has to stay inside `test/` next to the rig
+because every number it produces comes from the painter itself: `armOf` for where
+a pose puts a wrist, `armTo` for the only arm that can reach an observed wrist,
+`digitBones` for where that hand draws its knuckles. A fitter written in Python
+would have to reimplement all three and would drift from the rig the moment the
+rig moved.
+
+```bash
+# 1. clip landmarks -> JSON tracks in the corpus body frame
+training/video/.venv/bin/python training/video/export_fit_tracks.py \
+    --keys asl/hello asl/mother --out training/video/data/fit
+# 2. JSON track -> keyframes, from a test that reads the file
+LandmarkTrack.load('training/video/data/fit/asl__hello.json')
+final animation = fitTrack(track)!.animation;
+```
+
+The clip frame is the one the audit already uses: origin at the shoulder
+midpoint, one unit is a shoulder width. `toRig`/`fromRig` move between it and the
+painter's 0..1 canvas.
+
+**A 2D track has no elbow.** MediaPipe gives a wrist and finger tips, not the two
+arm angles, so every limb is *solved* with `armTo` from the observed wrist — which
+is also why the fit can be judged: reproject the solved pose and measure how far
+the drawing lands from the landmarks it was fitted to. Every keyframe carries three
+of those distances and they are the gate for accepting a fitted sign. Placement is
+in rig units against a 0.336 shoulder, so it is comparable with the audit's
+`POSITION_GAP`; shape is normalised by each hand's own palm length, so a big hand
+is not penalised for being big; fold is the mean disagreement about the four PIP
+angles in degrees, which is the same number the corpus audit charges an authored
+handshape (`SHAPE_MATCH`, 30°) — one threshold for fitted and authored alike.
+
+**One calibration cannot come out of a clip.** The rig's palm rotation axis is not
+the wrist→middle-knuckle line the landmarks measure: a hand drawn at palm angle
+`p` puts its middle knuckle at `p + side × 5.5°` (about 11.6° at half curl).
+`palmOf` inverts that. Fitting without it left a 0.10–0.17 palm-length residual on
+every handshape; with it, under 0.001. Applying it with the wrong sign doubles the
+error, which is why `landmark_fit_test.dart` pins it directly.
+
+Keyframes are cut where the moving hand stops and starts again — accumulated
+against the segment's start, not against the previous frame, because a wave drifts
+a few hundredths of a pixel per frame and totals a move. `_placeChange` is 0.012,
+a thirtieth of a shoulder: at the obvious 0.05 a tap never exceeds the threshold
+and EAT, NO and WATER each came out of the round trip as one static pose with no
+movement at all. The hand that moves most drives that grid; the other is read
+through the same windows, so both hands change on one clock. Frame count cannot
+pick the driver — the support hand of a one-handed sign is tracked in every frame
+and moves none of them.
+
+**Mirroring is not something the fit can decide.** `fitTrack(track, reflect: true)`
+reads the clip across the body centre line, which is what a selfie-view recording
+needs. It used to try both readings and take the better by 10%, and that was always
+a coin toss: the rig is exactly symmetric about the body line — `armTo` and
+`digitBones` both mirror with `side` — so the two readings reproject to the same
+three numbers to the twelfth decimal, on synthetic tracks and on real clips alike.
+`landmark_fit_test.dart` pins that equality, so the day the rig grows an asymmetric
+term that test is what says the mirror question has to be reopened. Chirality is an
+argument the caller passes, not a result, and `FitResult.reflected` only records
+what was asked for.
+
+**A slot is not a hand until it is seen often enough.** MediaPipe reports the idle
+hand for a frame or two whenever it half-enters frame, and a two-frame blob solved
+through `armTo` still produces a plausible arm. The first five real clips put three
+of those arms across the body, because a solved wrist with no evidence behind it is
+only ever a guess. `fitWith` needs `minSlotFrames` (6, the audit's
+`MIN_SHAPE_FRAMES`) before it believes a *second* hand, and a dropped one is named
+in `FitResult.droppedSlots` and in the verdict's notes rather than silently missing.
+The clip's longest slot is held to a lower bar — see the gate table below.
+
+**Runs merge toward disagreement, not toward short.** Cutting makes one run per
+gesture; `_maxKeys` (4) then forces merges. Merging the shortest run first — the
+obvious rule — throws a wave's extremes away and keeps its middle, because the
+extremes are the quick runs. The merge now pairs the two runs that agree most,
+scored in multiples of the very thresholds that cut them (`_placeChange`,
+`_shapeChangeDeg`, `_bearingChangeDeg`), and a run shorter than `_minSegmentFrames`
+is folded into whichever of its two neighbours it agrees with first. On real clips
+these two changes together — believing slots and merging on disagreement — cut
+placement error 2-6x; merging chains element-wise had been averaging two different
+hand positions into one keyframe.
+
+The round trip is the standing check: `test/avatar/landmark_fit_test.dart` paints
+a sign, exports its own landmarks back through `corpusPointsOf`, refits them, and
+requires the same places and the same movement out. Twelve core signs come back
+inside 0.005 rig units of placement error — 1.5% of a shoulder, about a pixel at
+card size — and 0.02 palm lengths of shape, and the gate accepts every one of them.
+If a sign the rig already draws correctly cannot come back out of the fitter,
+nothing fitted from a real video can be trusted.
+
+## Gating a fitted sign
+
+A fit is not a suggestion. `FitVerdict` reads the same reprojection numbers the fit
+was solved against and says, in as many sentences as it takes, whether the library
+may take the sign:
+
+| Gate | Value | Why there |
+| --- | --- | --- |
+| driver evidence | `minDriverFrames` = 4 | the clip's longest slot, see below |
+| second-hand evidence | `minSlotFrames` = 6 | the audit's `MIN_SHAPE_FRAMES` |
+| held evidence | `minKeyFrames` = 3 | a 1-2 frame key is a transition, not a citation form |
+| placement | `maxPlacementError` = 0.024 | twice the cut threshold; ~6 px at card size |
+| fold | `maxPipError` = 30° | the audit's `SHAPE_MATCH` for an authored handshape; named `fold ceiling` when the clip folds past `minDrawablePip` and no handshape could clear it |
+| aim | `maxAimError` = 30° | the same `SHAPE_MATCH`, on where the finger points |
+| roll | `rigMinAspect` × 0.90 | see below |
+
+Only keyframes held for `minKeyFrames` or longer are graded; the summary getters on
+`FitResult` read the same set (`citableKeys`), so the headline number and the
+verdict under it cannot disagree. When nothing is held long enough, the verdict
+says "no citation form" instead of grading a blur.
+
+**Evidence is a ladder, not one number.** A second hand needs 6 frames, because one
+flicker of the idle hand was enough to drag an arm across the body. But with one
+clip per word the signing hand is sometimes all the clip has: in 6 of the pilot's 23
+clips the longest slot ran 4 or 5 frames, and in 4 of those it was the clip's only
+slot. Refusing those lost the word, not a bad take, so the clip's longest slot is
+believed at `minDriverFrames` = 4 instead — 400 ms at the corpus's 10 fps, which is
+how long a citation form is held for. The shortest second hands across those same
+clips were 1 to 3 frames, and after the ladder only `asl/keep`, whose best slot ran
+2 frames, gets no fit at all.
+
+**Joint position is reported, never gated.** A fit used to be refused when its drawn
+joints landed 0.20 palm lengths off the clip's. On real footage that number turned
+out to be a sum of three things — where each finger aims, how far it folds, and how
+long this signer's fingers are against the cartoon's fixed ones — and no action
+could be taken on it. `asl/area` failed it with fingers folded 79.6° out and aiming
+21° off; `isl/will` failed it while aiming 13.5° and folding 22.6°, which is a
+handshape the avatar draws. Aim and fold are the two angular halves of the same
+measurement and each one names its own fix, so those are the gates. `shapeError`
+stays as a note above `shapeNoteFloor` = 0.20 palms on a clip that passes everything
+else: our hand against this signer's, which the rig has no parameter to draw any
+other way. `landmark_fit_test.dart` pins that with a clip whose every finger is 60%
+longer than the rig's — it still has to be accepted, and still has to say so.
+
+**Some footage this rig cannot represent at all.** A palm seen edge-on projects its
+knuckle span onto almost nothing, and a 2D track has no depth channel to say by how
+much. `rigMinAspect` reads the narrowest knuckle-span-per-palm the hand rig can
+draw (0.58) from `digitBones`, and a clip below it is refused as *rolled, not
+fitted* — cause named before the shape and fold errors it drags along, because the
+fix for that is different footage, not a better fit. The export deliberately does
+not filter these frames out: `export_fit_tracks.py` keeps them so the gate can say
+what the clip was.
+
+The other edge of shape space saturates quietly instead. The widest palm the rig can
+draw spans 1.21 knuckle-to-palm, and the pilot measured real clips at 1.28-1.94
+(`asl/area` 1.94, `isl/quickly` 1.78). Those are still hands a signer made, so they
+are not refused; the fit draws the widest palm it can and the disagreement shows up
+in `shapeError`, which is why that number is a report rather than a gate.
+
+```bash
+# per-clip, per-keyframe numbers and the gate that failed
+FIT_REPORT_DIR=training/video/data/pilot \
+    flutter test test/tools/fit_gate_report_test.dart
+```
+
+It prints every keyframe's own placement, shape, fold, aim and aspect, names the
+slots it did not believe, and tallies which gate rejects. This is the instrument for
+deciding whether a threshold sits in the right place rather than where the last clip
+landed.
+
+## The first pilot: 23 gap words
+
+The 25 gap ids that carry the most tokens cover 21.9% of everything the library
+cannot sign (2283 of 10425 gap tokens). One clip per (language, gloss) was exported
+through `export_fit_tracks.py` and fitted: 23 of the 25 have usable footage.
+`completely` has no clip in the cache at all, and `cannot` has two — the ASL take
+gave MediaPipe 3 usable frames out of 9 and the ISL take's hand never entered
+signing space — so it is the corpus that is short, not the fitter. To rebuild it:
+
+```bash
+training/video/.venv/bin/python training/video/export_fit_tracks.py \
+    --keys asl/all asl/area asl/before asl/during asl/end asl/finish \
+        asl/important asl/keep asl/leave asl/my asl/our asl/text asl/they \
+        asl/train asl/travel asl/try asl/use asl/very asl/we asl/why \
+        asl/your isl/quickly isl/will \
+    --out training/video/data/pilot
+```
+
+3 of the 23 are accepted today: `asl/end`, `asl/very`, `isl/will`. The rejection
+tally is what the pilot was for:
+
+| Gate | Clips | What it says |
+| --- | --- | --- |
+| aim | 8 | 3 miss by under 3°; the other 5 aim 33.5-51.8° off |
+| placement | 7 | 0.027-0.056 rig units — 6 to 13 px on a 237 px card |
+| rolled palm | 7 | aspect 0.18-0.52, below anything `digitBones` can draw |
+| fold | 6 | 5 of them fail a footage gate as well; only `isl/quickly` is refused for fold alone |
+| fold ceiling | 3 | the clip folds past the tightest hand the rig owns |
+| no fit | 1 | `asl/keep`: best slot 2 frames |
+| no citation form | 1 | `asl/my`: 4 frames split into two 2-frame transitions |
+
+A clip can fail more than one gate, so the column adds past 20.
+
+**The rig's fist is shallow, and that is not what blocks the library.** The
+tightest mean PIP `digitBones` can draw is 92.7°, read off the renderer by
+`minDrawablePip` rather than typed in, so a clip holding below 62.7° cannot
+clear the 30° fold gate whichever handshape the search picks. `FitVerdict` calls
+that `fold ceiling` instead of `fold`, which is how the pilot found out how much of
+the fold tally is the renderer: 3 clips of 9, and only `asl/area` — a real fist at
+13.5° mean PIP — is refused by nothing else. `docs/avatar_corpus_audit.md` was right
+that every closed rig hand reads shallower than a corpus fist, but on this footage it
+is a minority cause. Aim and placement are what the pilot actually trips over.
+
+**Which is why the gates are not the last word.** Seven placement rejections sit at
+6-13 px on the card the app actually draws, and three aim rejections miss by less
+than 3°; a threshold that refuses those may simply be measuring the difference
+between a video and a cartoon rather than the difference between one sign and another.
+The next instrument is a render, not a number: paint each rejected fit at card size
+beside the clip's own landmarks and look at it, because what matters is whether the
+avatar's hand reads as the signer's. Nothing here should be loosened to make the pass
+rate look better — that is exactly the "threshold where the last clip landed" mistake
+the report exists to catch.
+
+What the fit cannot represent, for now:
+
+- `lift` is a proxy from wrist height. A 2D track has no out-of-plane shoulder
+  rotation, so an arm that reaches toward the camera and one that reaches sideways
+  look the same to the fitter.
+- Two hands on the same side of the body become one arm — the rig has one arm per
+  side. The shape error reports the disagreement rather than hiding it.
+- Four keyframes is the binding limit, not the merge rule: a long continuous travel
+  (HELLO's wrist across a second of space) is cut into more than `_maxKeys` runs and
+  whatever survives merging carries the average.
+- `_placeChange` was tuned on clean synthetic tracks. Held keyframes on the pilot's
+  23 real clips reproject 0.003-0.074 rig units, so the cut is the right order and
+  7 clips still cross the placement gate. The report gives the size of that failure,
+  not its cause; the two candidates are a hand travelling inside one keyframe window
+  and a wrist the arm cannot reach, because `armTo` keeps the direction and takes up
+  the slack when a target is out of span (`avatar_painter.dart:243`).
+- Clips in the corpus are short: the pilot's slots run 1-22 usable frames, which is
+  why the evidence ladder exists, and why one clip per word is thin. `asl/keep` has
+  no fit at all. Most gap words will need more than one clip each before the gate
+  can be trusted to say anything about them.
 
 ## Verifying
 

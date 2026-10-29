@@ -49,8 +49,9 @@ void main() {
     final later = painter(tester).pose;
 
     expect(later.right.shoulder, isNot(early.right.shoulder));
-    // The idle smile rides on top of every authored pose.
-    expect(early.face.smile, greaterThan(0));
+    // The idle layer gives the face something to do without inventing an
+    // expression: the eyes track the signing hand.
+    expect(early.face.gaze, isNot(0));
   });
 
   testWidgets('idle life runs on the ticker clock, not the loop position',

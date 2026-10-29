@@ -120,6 +120,22 @@ class HandShape {
     spread: 0.0,
   );
 
+  /// A hand that is doing nothing, drawn closed.
+  ///
+  /// `relax` is the open hand a sign makes, and at rest it read as a rake: four
+  /// straight digits held flat to the camera. A hand at the end of a hanging
+  /// arm curls softly, so the silhouette ends in a rounded mass rather than in
+  /// four points; the digits still separate enough to read as fingers.
+  static const hang = HandShape(
+    index: 0.5,
+    middle: 0.55,
+    ring: 0.6,
+    pinky: 0.65,
+    thumb: 0.5,
+    thumbSpread: 0.05,
+    spread: 0.0,
+  );
+
   HandShape copyWith({
     double? index,
     double? middle,
@@ -184,11 +200,11 @@ class HandShape {
 class ArmPose {
   const ArmPose({
     this.shoulder = 8,
-    this.elbow = 14,
-    this.wrist = 0,
+    this.elbow = 16,
+    this.wrist = -4,
     this.palm = 0,
     this.lift = 0,
-    this.hand = HandShape.relax,
+    this.hand = HandShape.hang,
     this.visible = true,
   });
 
@@ -257,6 +273,7 @@ class FacePose {
   const FacePose({
     this.headTilt = 0,
     this.headTurn = 0,
+    this.gaze = 0,
     this.brow = 0,
     this.eyes = 0,
     this.mouth = 0,
@@ -269,6 +286,11 @@ class FacePose {
 
   /// -1 looking to the viewer's left, +1 to the right.
   final double headTurn;
+
+  /// Pupils looking to the viewer's left (-1) or right (+1), independent of
+  /// the head. Driven by the idle layer so the eyes follow the signing hand
+  /// rather than staring out of a turning head.
+  final double gaze;
 
   /// Signed brow position: 0 = neutral, 1 = raised (yes/no-question marking),
   /// -1 = furrowed (wh-question marking).
@@ -295,6 +317,7 @@ class FacePose {
   FacePose copyWith({
     double? headTilt,
     double? headTurn,
+    double? gaze,
     double? brow,
     double? eyes,
     double? mouth,
@@ -304,6 +327,7 @@ class FacePose {
   }) => FacePose(
     headTilt: headTilt ?? this.headTilt,
     headTurn: headTurn ?? this.headTurn,
+    gaze: gaze ?? this.gaze,
     brow: brow ?? this.brow,
     eyes: eyes ?? this.eyes,
     mouth: mouth ?? this.mouth,
@@ -315,6 +339,7 @@ class FacePose {
   static FacePose lerp(FacePose a, FacePose b, double t) => FacePose(
     headTilt: _lerp(a.headTilt, b.headTilt, t),
     headTurn: _lerp(a.headTurn, b.headTurn, t),
+    gaze: _lerp(a.gaze, b.gaze, t),
     brow: _lerp(a.brow, b.brow, t),
     eyes: _lerp(a.eyes, b.eyes, t),
     mouth: _lerp(a.mouth, b.mouth, t),
@@ -326,6 +351,7 @@ class FacePose {
   Map<String, double> toJson() => {
     'headTilt': headTilt,
     'headTurn': headTurn,
+    'gaze': gaze,
     'brow': brow,
     'eyes': eyes,
     'mouth': mouth,
@@ -337,6 +363,7 @@ class FacePose {
   static FacePose fromJson(Map<String, dynamic> json) => FacePose(
     headTilt: (json['headTilt'] as num?)?.toDouble() ?? 0,
     headTurn: (json['headTurn'] as num?)?.toDouble() ?? 0,
+    gaze: (json['gaze'] as num?)?.toDouble() ?? 0,
     brow: (json['brow'] as num?)?.toDouble() ?? 0,
     eyes: (json['eyes'] as num?)?.toDouble() ?? 0,
     mouth: (json['mouth'] as num?)?.toDouble() ?? 0,

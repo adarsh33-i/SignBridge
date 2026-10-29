@@ -1,6 +1,9 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:sign_bridge/services/avatar/rig/avatar_painter.dart';
+import 'package:sign_bridge/services/avatar/rig/fingerspell_shapes.dart';
 import 'package:sign_bridge/services/avatar/rig/sign_animation.dart';
 import 'package:sign_bridge/services/avatar/rig/sign_library.dart';
 import 'package:sign_bridge/services/avatar/rig/sign_pose.dart';
@@ -56,6 +59,10 @@ void main() {
     'where',
     'how',
     'today',
+    'morning',
+    'this',
+    'time',
+    'talk',
     'go',
     'come',
     'see',
@@ -184,6 +191,58 @@ void main() {
         reason: 'ME points at $tip instead of the chest',
       );
     });
+
+    test('the contact signs bring both hands to the middle of the body', () {
+      // A mirrored pair of authored angles parks each hand at its own shoulder,
+      // roughly 0.3 of the card apart, so every one of these rendered as the
+      // same symmetric shrug. Both builders now solve the arms to a place, so
+      // this pins the place: at some frame of each sign the two wrists sit
+      // inside one palm-width of each other, on the centre line.
+      const palmWidth = 0.078;
+      for (final id in [
+        'assist',
+        'bad',
+        'buy',
+        'doctor',
+        'enjoy',
+        'finance',
+        'friend',
+        'help',
+        'love',
+        'mention',
+        'money',
+        'name',
+        'negative',
+        'relationship',
+        'school',
+        'temperature',
+        'watch',
+        'work',
+      ]) {
+        final animation = SignLibrary.forToken(token(id))!;
+        var tightest = double.infinity;
+        var centre = 0.0;
+        for (final key in animation.frames) {
+          final near = AvatarPainter.armOf(key.pose, 1);
+          final far = AvatarPainter.armOf(key.pose, -1);
+          final gap = (near.wrist - far.wrist).distance;
+          if (gap < tightest) {
+            tightest = gap;
+            centre = (near.wrist.dx + far.wrist.dx) / 2;
+          }
+        }
+        expect(
+          tightest,
+          lessThan(palmWidth),
+          reason: '$id keeps its hands $tightest apart',
+        );
+        expect(
+          (centre - 0.5).abs(),
+          lessThan(0.04),
+          reason: '$id meets its hands off-centre at $centre',
+        );
+      }
+    });
   });
 
   String shapeOf(SignPose pose) {
@@ -299,6 +358,51 @@ void main() {
       final animation = SignLibrary.forToken(token('thermometer'));
       expect(animation, isNotNull);
       expect(animation!.id, 'temperature');
+    });
+  });
+
+  group('the two glosses that used to be spelled', () {
+    test('IX points off to the side instead of spelling the letters', () {
+      final animation = SignLibrary.forToken(token('ix'))!;
+      expect(animation.id, 'ix', reason: 'IX fell through to fingerspell');
+      for (final key in animation.frames) {
+        expect(key.pose.right.hand, same(HandShape.point));
+      }
+
+      // The point has to leave the body. A hand in front of the sternum with
+      // the index down is YOU, one straight down at the middle is THIS, so the
+      // difference has to be visible in where the finger ends up.
+      final arm = AvatarPainter.armOf(animation.frames.last.pose, 1);
+      expect(
+        arm.wrist.dx,
+        greaterThan(0.66),
+        reason: 'IX stays in front of the chest at ${arm.wrist.dx}',
+      );
+      expect(
+        arm.palmTop.dx,
+        greaterThan(arm.wrist.dx + 0.04),
+        reason: 'IX points back at the middle of the body',
+      );
+    });
+
+    test('NOT keeps NO snap with the N hand', () {
+      final animation = SignLibrary.forToken(token('not'))!;
+      expect(animation.id, 'not', reason: 'NOT fell through to fingerspell');
+      expect(animation.gloss, 'NOT');
+      expect(
+        animation.frames.first.pose.right.hand,
+        same(FingerspellShapes.letters['n']),
+      );
+      expect(animation.frames.last.pose.right.hand, same(HandShape.fist));
+
+      // Same place as NO, different hand: the pair has to read as one sign
+      // family, which is what ASL does with the two words.
+      final no = AvatarPainter.armOf(
+        SignLibrary.forToken(token('no'))!.frames.first.pose,
+        1,
+      );
+      final not = AvatarPainter.armOf(animation.frames.first.pose, 1);
+      expect((not.wrist - no.wrist).distance, lessThan(0.02));
     });
   });
 
@@ -470,7 +574,7 @@ void main() {
     // If the head is resized these fail, which is the point: the face signs
     // were authored against this circle.
     const head = Offset(0.5, 0.245);
-    const headRadius = 0.099;
+    const headRadius = 0.088;
     const palm = 0.078;
 
     /// Where the body of the hand sits, between the wrist and the fingertips.
@@ -550,6 +654,73 @@ void main() {
           reason: '$id overlaps its own two hands across the face',
         );
       }
+    });
+
+    // The eyes are where question, negation and role-shift faces live, so a palm
+    // laid across them erases the grammar half of what the sign is saying. The
+    // mouth band is deliberately not scored — for EAT, WATER, MOTHER and the
+    // rest the hand *is* at the mouth, and that is the sign.
+    //
+    // This walks the head circle at card scale for every authored animation and
+    // keeps the frame that covers the most. The hand paths are built once per
+    // frame rather than per sample, which is what makes the whole library
+    // affordable here.
+    test('no sign buries the eyes unless the eyes are the sign', () {
+      // browY - 0.010 .. eyeY + 0.016, the band the sweep scored.
+      const browTop = 0.2057;
+      const eyeBottom = 0.2724;
+      const budget = 0.30;
+
+      // The signs whose handshape sits over the eyes by definition: SEE and
+      // VISION touch one eye with one finger, SNOW flutters both open hands in
+      // front of the brow. Arguing with these means arguing with the sign, not
+      // with the rig.
+      const overTheEyesByDesign = {'see', 'vision', 'snow'};
+
+      final offenders = <String, double>{};
+      SignLibrary.debugCore.forEach((id, animation) {
+        if (overTheEyesByDesign.contains(id)) return;
+        var worst = 0.0;
+        for (final frame in animation.frames) {
+          final head = AvatarPainter.headUnitPath(frame.pose);
+          final hands = <ui.Path>[];
+          for (final side in [-1.0, 1.0]) {
+            final arm = side < 0 ? frame.pose.left : frame.pose.right;
+            if (!arm.visible) continue;
+            final joints = AvatarPainter.armOf(frame.pose, side);
+            hands.add(
+              AvatarPainter.handUnitPath(
+                arm,
+                joints.wrist,
+                joints.palmAngle,
+                side,
+              ),
+            );
+          }
+          if (hands.isEmpty) continue;
+          var hit = 0, total = 0;
+          for (var x = 0.41; x <= 0.59; x += 0.005) {
+            for (var y = browTop; y <= eyeBottom; y += 0.005) {
+              final at = Offset(x, y);
+              if (!head.contains(at)) continue;
+              total++;
+              if (hands.any((p) => p.contains(at))) hit++;
+            }
+          }
+          final cover = total == 0 ? 0.0 : hit / total;
+          if (cover > worst) worst = cover;
+        }
+        if (worst > budget) offenders[id] = worst;
+      });
+
+      expect(
+        offenders.map((id, v) => MapEntry(id, (v * 100).toStringAsFixed(1))),
+        isEmpty,
+        reason:
+            'these signs cover more than ${(budget * 100).round()}% of the eye '
+            'band at their worst frame; move the hand below the jaw or out to '
+            'the side of the head, as HOME and the mouth spots were',
+      );
     });
   });
 
@@ -634,10 +805,30 @@ void main() {
     });
 
     test('the flapping pairs carry the far wrist against the near', () {
-      for (final id in ['enjoy', 'hug', 'cloud']) {
+      for (final id in ['hug', 'cloud']) {
         for (final key in SignLibrary.forToken(token(id))!.frames) {
           expect(key.pose.left.wrist, -key.pose.right.wrist, reason: id);
         }
+      }
+
+      // ENJOY's pair is solved to meet at the chest centre, so its wrist
+      // offsets are whatever lands each palm there and no longer mirror each
+      // other as numbers. What has to survive the solve is the shape the test
+      // was standing in for: the two hands at the same height, the same
+      // distance either side of the middle of the body.
+      for (final key in SignLibrary.forToken(token('enjoy'))!.frames) {
+        final near = AvatarPainter.armOf(key.pose, 1);
+        final far = AvatarPainter.armOf(key.pose, -1);
+        expect(
+          far.wrist.dx,
+          closeTo(1 - near.wrist.dx, 0.004),
+          reason: 'enjoy',
+        );
+        expect(
+          far.wrist.dy,
+          closeTo(near.wrist.dy, 0.004),
+          reason: 'enjoy',
+        );
       }
       for (final key in SignLibrary.forToken(token('enjoy'))!.frames) {
         expect(key.pose.left.hand, same(HandShape.flat));

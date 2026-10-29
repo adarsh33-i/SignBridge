@@ -86,7 +86,7 @@ void main() {
               final now = _joints(arm == 0 ? pose.right : pose.left);
               final before = _joints(arm == 0 ? previous.right : previous.left);
               for (var j = 0; j < now.length; j++) {
-                final d = (now[j] - before[j]).abs();
+                final d = _jointStep(now[j], before[j]);
                 if (d > max) max = d;
               }
             }
@@ -222,7 +222,7 @@ void main() {
               final now = _joints(arm == 0 ? pose.right : pose.left);
               final before = _joints(arm == 0 ? previous.right : previous.left);
               for (var j = 0; j < now.length; j++) {
-                final d = (now[j] - before[j]).abs();
+                final d = _jointStep(now[j], before[j]);
                 if (d > max) max = d;
               }
             }
@@ -236,6 +236,48 @@ void main() {
       expect(coarse, lessThan(24.0), reason: 'a joint is moving faster than a hand can');
       expect(worst(2) * 8, lessThanOrEqualTo(coarse * 1.6),
           reason: 'subdividing did not shrink the worst step, so something jumps');
+    });
+
+    test('a question face is held over the signs, not only the marker beat', () {
+      // The recording's question signed four words with a flat brow and then
+      // furrowed for half a second at the end. The marker scopes the sentence,
+      // so the brow arrives with the first sign and stays until the last.
+      final t = SignTimeline.of([
+        token('hello'),
+        token('you'),
+        token('this'),
+        marker(AslNmmMarkers.whQ),
+      ]);
+      for (var i = 0; i < 3; i++) {
+        final mid = t.cues[i].startMs + t.cues[i].animation.totalMs ~/ 2;
+        expect(
+          t.poseAt(mid).face.brow,
+          lessThan(-0.5),
+          reason: 'sign $i played outside the question face',
+        );
+      }
+      // And it lets go with the settle, so the next caption starts clean.
+      expect(t.poseAt(t.totalMs).face.brow, 0);
+    });
+
+    test('a statement has no question face', () {
+      final t = SignTimeline.of([token('hello'), token('you')]);
+      for (var i = 0; i < t.cues.length; i++) {
+        final mid = t.cues[i].startMs + t.cues[i].animation.totalMs ~/ 2;
+        expect(t.poseAt(mid).face.brow, 0);
+      }
+    });
+
+    test('two scoping markers do not fight over the brow', () {
+      final t = SignTimeline.of([
+        marker(AslNmmMarkers.ynQ),
+        token('hello'),
+        marker(AslNmmMarkers.whQ),
+      ]);
+      // Each marker still plays its own face; the signs between them are not
+      // painted with a face that belongs to neither.
+      final helloMid = t.cues[1].startMs + t.cues[1].animation.totalMs ~/ 2;
+      expect(t.poseAt(helloMid).face.brow, 0);
     });
 
     test('the chip never shows marker notation', () {
@@ -295,3 +337,13 @@ List<double> _joints(ArmPose a) => [
       a.hand.pinky,
       a.hand.thumb,
     ];
+
+/// How far a joint turned, treating a whole turn as no movement.
+///
+/// The stitching shifts a joint by 360 to take the short way between signs, so
+/// the raw numbers can jump by a full turn in a frame while the drawn pose does
+/// not move at all. Measuring the short arc is what "continuous" means here.
+double _jointStep(double now, double before) {
+  final d = (now - before).abs() % 360.0;
+  return d > 180.0 ? 360.0 - d : d;
+}

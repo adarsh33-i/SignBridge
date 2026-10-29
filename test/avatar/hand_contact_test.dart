@@ -24,7 +24,20 @@ void main() {
     });
 
     test('headUnitPath orbits the neck pivot but never shrinks at any tilt', () {
-      const radius = 0.099;
+      // Measured from the untilted silhouette rather than copied out of the
+      // painter: the skull radius is a proportion constant that moves whenever
+      // the head/shoulder read is retuned, and this pin is about coverage at
+      // whatever radius the head currently has.
+      final rest = AvatarPainter.headUnitPath(
+        const SignPose(
+          name: 't',
+          left: ArmPose.resting,
+          right: ArmPose.resting,
+          face: FacePose.neutral,
+        ),
+      ).getBounds();
+      final radius = rest.width / 2;
+      const centre = Offset(0.5, 0.245);
       for (final tilt in [-12.0, 0.0, 14.0]) {
         final pose = SignPose(
           name: 't',
@@ -36,11 +49,11 @@ void main() {
         final bounds = head.getBounds();
         // The centre swings around the neck pivot (getBounds on the rotated
         // cubic is slightly inflated, hence the loose slack)…
-        final centreShift = (bounds.center - const Offset(0.5, 0.245)).distance;
+        final centreShift = (bounds.center - centre).distance;
         expect(centreShift, lessThan(radius * 0.6));
         // …but the skull still covers the face it draws around.
-        expect(head.contains(const Offset(0.5, 0.245)), isTrue);
-        expect(head.contains(Offset(0.5, 0.245 - radius * 0.9)), isTrue);
+        expect(head.contains(centre), isTrue);
+        expect(head.contains(Offset(0.5, centre.dy - radius * 0.9)), isTrue);
       }
     });
   });

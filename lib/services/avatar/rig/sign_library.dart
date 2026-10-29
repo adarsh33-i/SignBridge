@@ -1,6 +1,9 @@
+import 'dart:ui' show Offset;
+
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../translate/sign_token.dart';
+import 'avatar_painter.dart';
 import 'fingerspell_shapes.dart';
 import 'indic_spelling.dart';
 import 'sign_animation.dart';
@@ -77,15 +80,29 @@ abstract final class SignLibrary {
 
   /// One-handed letters travelled in sequence, each with a small tap so the
   /// boundary between letters stays visible.
+  ///
+  /// The hand is upright in front of the chest, not beside the face. The old
+  /// angles put the fingertips at eye height, so every spelled word was a
+  /// hand held over the cheek; the wrist here is chosen so the palm faces the
+  /// viewer with the fingers up, which is the orientation the letter shapes
+  /// were drawn for.
   static SignAnimation fingerspell(String word) {
     final letters = word.split('').where(FingerspellShapes.letters.containsKey);
+    SignPose letterPose(HandShape hand, {double drop = 0}) => _hand(
+      hand,
+      elbow: 240 + drop,
+      // The wrist gives back what the elbow adds, so the letter stays upright
+      // while the whole hand dips. `lower` rotated the shoulder, which at chest
+      // height moves the hand sideways, not down.
+      wrist: -70 - drop,
+    );
     final keys = <PoseKey>[
-      PoseKey(pose: _hand(HandShape.relax), travelMs: 120, holdMs: 40),
+      PoseKey(pose: letterPose(HandShape.relax), travelMs: 120, holdMs: 40),
     ];
     for (final letter in letters) {
       keys.add(
         PoseKey(
-          pose: _hand(FingerspellShapes.letters[letter]!),
+          pose: letterPose(FingerspellShapes.letters[letter]!),
           travelMs: 110,
           holdMs: 90,
         ),
@@ -93,13 +110,13 @@ abstract final class SignLibrary {
       // A slight drop between letters reads as the tap that separates them.
       keys.add(
         PoseKey(
-          pose: _hand(FingerspellShapes.letters[letter]!, lower: 9),
+          pose: letterPose(FingerspellShapes.letters[letter]!, drop: 14),
           travelMs: 60,
           holdMs: 20,
         ),
       );
     }
-    keys.add(PoseKey(pose: _hand(HandShape.relax), travelMs: 120, holdMs: 40));
+    keys.add(PoseKey(pose: letterPose(HandShape.relax), travelMs: 120, holdMs: 40));
     return SignAnimation(
       id: 'spell_$word',
       gloss: word.toUpperCase(),
@@ -115,11 +132,13 @@ abstract final class SignLibrary {
         id,
         '[wh-q]',
         const FacePose(brow: -0.85, headTilt: -6, headTurn: 0.3),
+        spreadsFace: true,
       ),
       'nmm_ynQ' => _faceOnly(
         id,
         '[y/n-q]',
         const FacePose(brow: 0.7, headTilt: 5),
+        spreadsFace: true,
       ),
       'nmm_rhQ' => _faceOnly(
         id,
@@ -154,6 +173,7 @@ abstract final class SignLibrary {
     String gloss,
     FacePose face, {
     bool sway = false,
+    bool spreadsFace = false,
   }) {
     final neutral = SignPose(
       name: id,
@@ -172,6 +192,7 @@ abstract final class SignLibrary {
         id: id,
         gloss: gloss,
         faceOnly: true,
+        spreadsFace: spreadsFace,
         keys: [
           PoseKey(pose: neutral, travelMs: 0, holdMs: 40),
           PoseKey(pose: marked, travelMs: 180, holdMs: 260),
@@ -272,6 +293,11 @@ abstract final class SignLibrary {
     ),
 
     // Index across the space between the two bodies: YOU.
+    //
+    // The corpus puts the wrist at chest height and pushes it forward; the old
+    // authored pair held the index up beside the temple, which is where the
+    // recording's hand sat on the cheek. The point is made in front of the
+    // sternum, angled forward and down, with a short push toward the addressee.
     'you': SignAnimation(
       id: 'you',
       gloss: 'YOU',
@@ -279,9 +305,9 @@ abstract final class SignLibrary {
         _k(
           _hand(
             HandShape.point,
-            shoulder: 54,
-            elbow: 162,
-            wrist: -16,
+            shoulder: 40,
+            elbow: 218,
+            wrist: 78,
             lift: 0.5,
           ),
           travel: 0,
@@ -290,11 +316,12 @@ abstract final class SignLibrary {
         _k(
           _hand(
             HandShape.point,
-            shoulder: 66,
-            elbow: 152,
-            wrist: -20,
-            lift: 0.42,
+            shoulder: 46,
+            elbow: 212,
+            wrist: 88,
+            lift: 0.5,
           ),
+          travel: 360,
           hold: 160,
         ),
       ],
@@ -384,18 +411,65 @@ abstract final class SignLibrary {
       repeat: 2,
     ),
 
+    // The same snap with the three middle fingers over the thumb: NOT.
+    // ASL writes negation twice over — NO for the word, NOT for the grammar —
+    // and the only visible difference is the hand. Spelling N-O-T out was the
+    // old answer, which made every negated sentence trail into letters.
+    'not': SignAnimation(
+      id: 'not',
+      gloss: 'NOT',
+      keys: [
+        _k(
+          _hand(
+            FingerspellShapes.letters['n']!,
+            shoulder: 20,
+            elbow: 186,
+            wrist: -18,
+          ),
+          travel: 0,
+          hold: 60,
+        ),
+        _k(
+          _hand(HandShape.fist, shoulder: 20, elbow: 186, wrist: -18),
+          hold: 70,
+        ),
+      ],
+      repeat: 2,
+    ),
+
     // Bent hand drops onto the flat non-dominant palm, twice: GOOD.
+    //
+    // The non-dominant forearm lies across the lower chest with the palm up
+    // (support elbow 240 puts that wrist at the sternum, pointing across), and
+    // the dominant hand starts at the corner of the chin and presses down onto
+    // it. The old pair held both hands at collar height in front of the face.
     'good': SignAnimation(
       id: 'good',
       gloss: 'GOOD',
       keys: [
         _k(
-          _two(HandShape.bent, HandShape.flat, shoulder: 46, elbow: 176),
+          _two(
+            HandShape.bent,
+            HandShape.flat,
+            shoulder: 40,
+            elbow: 265,
+            wrist: -75,
+            supportElbow: 240,
+            supportWrist: 6,
+          ),
           travel: 0,
           hold: 70,
         ),
         _k(
-          _two(HandShape.fist, HandShape.flat, shoulder: 30, elbow: 172),
+          _two(
+            HandShape.fist,
+            HandShape.flat,
+            shoulder: 26,
+            elbow: 236,
+            wrist: -8,
+            supportElbow: 240,
+            supportWrist: 6,
+          ),
           hold: 90,
         ),
       ],
@@ -549,11 +623,11 @@ abstract final class SignLibrary {
       gloss: 'EAT',
       keys: [
         _k(
-          _atFace(HandShape.flat, _FaceSpot.mouth, wrist: -22),
+          _atFace(HandShape.flat, _FaceSpot.mouth, wrist: -30),
           travel: 0,
           hold: 60,
         ),
-        _k(_atFace(HandShape.pinch, _FaceSpot.mouth, wrist: 12), hold: 70),
+        _k(_atFace(HandShape.pinch, _FaceSpot.mouth, wrist: 4), hold: 70),
       ],
       repeat: 2,
     ),
@@ -564,12 +638,12 @@ abstract final class SignLibrary {
       gloss: 'WATER',
       keys: [
         _k(
-          _atFace(FingerspellShapes.letters['w']!, _FaceSpot.mouth, wrist: -20),
+          _atFace(FingerspellShapes.letters['w']!, _FaceSpot.mouth, wrist: -28),
           travel: 0,
           hold: 70,
         ),
         _k(
-          _atFace(FingerspellShapes.letters['w']!, _FaceSpot.mouth, wrist: 20),
+          _atFace(FingerspellShapes.letters['w']!, _FaceSpot.mouth, wrist: 12),
           hold: 80,
         ),
       ],
@@ -577,12 +651,19 @@ abstract final class SignLibrary {
     ),
 
     // Both 5-hands start at the cheeks then swing forward: HOME.
+    //
+    // The pair used to start at the temples with the arm half-folded, which put
+    // the wrist at eye height and laid both flat hands across the eyes (66.5% of
+    // the eye band at card size, measured). Opening the elbow to 152 brings the
+    // same hand up from below the jaw instead: wrist (0.635, 0.309), fingertips
+    // (0.558, 0.298) — the cheek beside the corner of the mouth, which is where
+    // HOME is actually touched — and 5.4% of the eyes.
     'home': SignAnimation(
       id: 'home',
       gloss: 'HOME',
       keys: [
         _k(
-          _both(HandShape.flat, shoulder: 134, elbow: 124, lift: 1.0),
+          _both(HandShape.flat, shoulder: 134, elbow: 152, lift: 1.0),
           travel: 0,
           hold: 110,
         ),
@@ -604,6 +685,7 @@ abstract final class SignLibrary {
             shoulder: 34,
             elbow: 182,
             lift: 0.5,
+            meet: 0.030,
           ),
           travel: 0,
           hold: 60,
@@ -614,6 +696,7 @@ abstract final class SignLibrary {
             shoulder: 30,
             elbow: 176,
             lift: 0.6,
+            meet: 0.030,
           ),
           hold: 60,
         ),
@@ -623,6 +706,7 @@ abstract final class SignLibrary {
             shoulder: 36,
             elbow: 180,
             lift: 0.5,
+            meet: 0.030,
           ),
           hold: 60,
         ),
@@ -632,6 +716,7 @@ abstract final class SignLibrary {
             shoulder: 31,
             elbow: 175,
             lift: 0.6,
+            meet: 0.030,
           ),
           hold: 70,
         ),
@@ -776,12 +861,12 @@ abstract final class SignLibrary {
       gloss: 'LOVE',
       keys: [
         _k(
-          _both(HandShape.fist, shoulder: 52, elbow: 150, lift: 0.45),
+          _both(HandShape.fist, shoulder: 52, elbow: 170, lift: 0.45, meet: 0.050),
           travel: 0,
           hold: 160,
         ),
         _k(
-          _both(HandShape.fist, shoulder: 60, elbow: 158, lift: 0.38),
+          _both(HandShape.fist, shoulder: 60, elbow: 178, lift: 0.38, meet: 0.022),
           travel: 200,
           hold: 120,
         ),
@@ -973,12 +1058,12 @@ abstract final class SignLibrary {
       gloss: 'SCHOOL',
       keys: [
         _k(
-          _both(HandShape.flat, shoulder: 56, elbow: 160, lift: 0.35),
+          _both(HandShape.flat, shoulder: 56, elbow: 178, lift: 0.35, meet: 0.055),
           travel: 0,
           hold: 50,
         ),
         _k(
-          _both(HandShape.flat, shoulder: 34, elbow: 178, lift: 0.55),
+          _both(HandShape.flat, shoulder: 34, elbow: 198, lift: 0.55, meet: 0.018),
           hold: 70,
         ),
       ],
@@ -991,12 +1076,12 @@ abstract final class SignLibrary {
       gloss: 'FRIEND',
       keys: [
         _k(
-          _both(HandShape.point, shoulder: 40, elbow: 176, lift: 0.5),
+          _both(HandShape.point, shoulder: 40, elbow: 176, lift: 0.5, meet: 0.030),
           travel: 0,
           hold: 60,
         ),
         _k(
-          _both(HandShape.point, shoulder: 34, elbow: 182, lift: 0.55),
+          _both(HandShape.point, shoulder: 34, elbow: 182, lift: 0.55, meet: 0.018),
           hold: 70,
         ),
       ],
@@ -1027,8 +1112,9 @@ abstract final class SignLibrary {
           _both(
             FingerspellShapes.letters['a']!,
             shoulder: 34,
-            elbow: 158,
+            elbow: 176,
             lift: 0.52,
+            meet: 0.046,
           ),
           travel: 0,
           hold: 60,
@@ -1037,8 +1123,9 @@ abstract final class SignLibrary {
           _both(
             FingerspellShapes.letters['a']!,
             shoulder: 52,
-            elbow: 142,
+            elbow: 160,
             lift: 0.42,
+            meet: 0.046,
           ),
           hold: 90,
         ),
@@ -1059,7 +1146,7 @@ abstract final class SignLibrary {
           _atFace(
             HandShape.o,
             _FaceSpot.cheek,
-            wrist: -10,
+            wrist: -14,
             face: const FacePose(mouth: 0.3),
           ),
           travel: 0,
@@ -1092,8 +1179,8 @@ abstract final class SignLibrary {
           travel: 0,
           hold: 55,
         ),
-        _k(_atFace(HandShape.pinch, _FaceSpot.mouth, wrist: -12), hold: 60),
-        _k(_atFace(HandShape.flat, _FaceSpot.mouth, wrist: -22), hold: 90),
+        _k(_atFace(HandShape.pinch, _FaceSpot.mouth, wrist: -20), hold: 60),
+        _k(_atFace(HandShape.flat, _FaceSpot.mouth, wrist: -30), hold: 90),
       ],
       repeat: 2,
       pingpong: true,
@@ -1116,6 +1203,7 @@ abstract final class SignLibrary {
             elbow: 200,
             wrist: -20,
             lift: 0.9,
+            meet: 0.024,
           ),
           travel: 0,
           hold: 50,
@@ -1127,6 +1215,7 @@ abstract final class SignLibrary {
             elbow: 192,
             wrist: -14,
             lift: 0.84,
+            meet: 0.075,
           ),
           hold: 55,
         ),
@@ -1137,6 +1226,7 @@ abstract final class SignLibrary {
             elbow: 198,
             wrist: -26,
             lift: 0.92,
+            meet: 0.040,
           ),
           hold: 55,
         ),
@@ -1283,6 +1373,7 @@ abstract final class SignLibrary {
             elbow: 182,
             wrist: -16,
             lift: 0.22,
+            meet: 0.055,
           ),
           travel: 0,
           hold: 60,
@@ -1294,6 +1385,7 @@ abstract final class SignLibrary {
             elbow: 188,
             wrist: 16,
             lift: 0.12,
+            meet: 0.024,
           ),
           hold: 95,
         ),
@@ -1449,10 +1541,12 @@ abstract final class SignLibrary {
       repeat: 2,
     ),
     // Both open hands start knuckles-in at the chest and roll outward: HOW.
-    // The reference clip starts with loosely curled hands almost touching at
-    // the centre of the chest and turns them palm-up, so the old pair, sitting
-    // out beside the shoulders with deep fist-like curls, signed the wrong
-    // shape in the wrong place. The roll is the sign.
+    //
+    // The corpus puts both wrists at chest height (rig y ~0.56-0.69), not at
+    // the chin; the old pair sat up by the collar. The elbows bring the hands
+    // together low in front of the sternum with the fingertips angled down and
+    // in, then the wrists roll them open and up. The roll is the sign, so the
+    // wrist carries nearly a hundred degrees between the two keys.
     'how': SignAnimation(
       id: 'how',
       gloss: 'HOW',
@@ -1460,9 +1554,9 @@ abstract final class SignLibrary {
         _k(
           _mirrored(
             HandShape.relax,
-            shoulder: 48,
-            elbow: 190,
-            wrist: 16,
+            shoulder: 26,
+            elbow: 244,
+            wrist: 60,
             lift: 0.5,
           ),
           travel: 0,
@@ -1471,16 +1565,161 @@ abstract final class SignLibrary {
         _k(
           _mirrored(
             HandShape.relax,
-            shoulder: 56,
-            elbow: 186,
+            shoulder: 26,
+            elbow: 244,
             wrist: -38,
-            lift: 0.45,
+            lift: 0.5,
           ),
           hold: 70,
         ),
       ],
       repeat: 2,
       pingpong: true,
+    ),
+
+    // Index points down at the referent and taps twice: THIS.
+    //
+    // The corpus shows the dominant index at chest height moving straight down
+    // in short beats. It points down rather than across, so it reads as
+    // pointing at a thing — the across-and-forward point is YOU.
+    'this': SignAnimation(
+      id: 'this',
+      gloss: 'THIS',
+      keys: [
+        _k(
+          _hand(HandShape.point, shoulder: 30, elbow: 240, wrist: 90),
+          travel: 0,
+          hold: 70,
+        ),
+        _k(
+          _hand(HandShape.point, shoulder: 30, elbow: 258, wrist: 72),
+          hold: 70,
+        ),
+      ],
+      repeat: 2,
+    ),
+
+    // Elbow out to the side, index pointing down-and-out at a locus: IX.
+    //
+    // The gloss engine emits IX for the pronoun-point — "that one there",
+    // "she" — and until now it answered with the letters I and X, so every
+    // sentence that leaned on a pronoun trailed into spelling. THIS taps
+    // straight down at the middle of the chest and YOU points down at the
+    // addressee in front of the sternum; what is left is a point made off to
+    // one side. The arm is too long for the card to reach sideways with a
+    // straight elbow, so the point is built the way a signer builds it: elbow
+    // out, forearm coming back down, index aimed away from the body. Both keys
+    // are solved to a place rather than authored as angles.
+    'ix': SignAnimation(
+      id: 'ix',
+      gloss: 'IX',
+      keys: [
+        _k(_pointTo(const Offset(0.700, 0.478), palm: 62), travel: 0, hold: 80),
+        _k(_pointTo(const Offset(0.748, 0.462), palm: 56), hold: 85),
+      ],
+      repeat: 2,
+      pingpong: true,
+    ),
+
+    // Index taps the back of the non-dominant wrist twice: TIME.
+    //
+    // The support forearm lies across the lower chest with the hand pointing to
+    // the centre; the dominant index comes down on the wrist joint from above.
+    // The tap is elbow flexion, because at chest height rotating the shoulder
+    // slides the hand sideways instead of dropping it.
+    'time': SignAnimation(
+      id: 'time',
+      gloss: 'TIME',
+      keys: [
+        _k(
+          _two(
+            HandShape.point,
+            HandShape.flat,
+            shoulder: 28,
+            elbow: 216,
+            wrist: 40,
+            supportElbow: 240,
+            supportWrist: 6,
+          ),
+          travel: 0,
+          hold: 70,
+        ),
+        _k(
+          _two(
+            HandShape.point,
+            HandShape.flat,
+            shoulder: 28,
+            elbow: 230,
+            wrist: 26,
+            supportElbow: 240,
+            supportWrist: 6,
+          ),
+          hold: 60,
+        ),
+      ],
+      repeat: 2,
+    ),
+
+    // Flat dominant hand rises off the support palm to the chin: MORNING.
+    //
+    // The corpus has the support wrist at the chest and the dominant wrist
+    // rising from it toward the mouth. The sunrise is drawn by pivoting the
+    // flat palm from lying on the support hand to standing up in front of the
+    // collar; the tips stop short of the chin so the face stays readable.
+    'morning': SignAnimation(
+      id: 'morning',
+      gloss: 'MORNING',
+      keys: [
+        _k(
+          _two(
+            HandShape.flat,
+            HandShape.flat,
+            shoulder: 30,
+            elbow: 240,
+            wrist: 0,
+            supportElbow: 240,
+            supportWrist: 6,
+          ),
+          travel: 0,
+          hold: 90,
+        ),
+        _k(
+          _two(
+            HandShape.flat,
+            HandShape.flat,
+            shoulder: 40,
+            elbow: 250,
+            wrist: -90,
+            supportElbow: 240,
+            supportWrist: 6,
+          ),
+          travel: 300,
+          hold: 140,
+        ),
+      ],
+    ),
+
+    // Index at the corner of the mouth beats outward, twice: TALK.
+    //
+    // TALK is made at the mouth, so unlike the repaired vocabulary this one
+    // belongs on the face; it only has to leave it between beats. The beat
+    // drops the hand to the collar, then the restart lifts it back to the lips.
+    'talk': SignAnimation(
+      id: 'talk',
+      gloss: 'TALK',
+      keys: [
+        _k(
+          _hand(HandShape.point, shoulder: 16, elbow: 214, wrist: -30),
+          travel: 0,
+          hold: 80,
+        ),
+        _k(
+          _hand(HandShape.point, shoulder: 24, elbow: 220, wrist: -30),
+          travel: 220,
+          hold: 70,
+        ),
+      ],
+      repeat: 2,
     ),
 
     // Both flat palms lift in front of the chest and settle twice: TODAY.
@@ -1631,17 +1870,25 @@ abstract final class SignLibrary {
     // The reference clip shows open spread hands in that zone, not the cups
     // this used to hold; the fanned shape also keeps the pair apart from
     // WINDY's flutter below it.
+    // Two open hands drift past the head: CLOUD.
+    //
+    // The fold used to bring both hands in front of the brow, where the flat of
+    // a fanned hand covers the eyes (58.6% of the band at card size). Straight
+    // arms at shoulder 134 keep the same height but put the hands at the
+    // hairline beside the head — 6.9% of the eyes — and the drift is now the
+    // arms opening out, which is the part of the sign that reads as weather
+    // moving across instead of a palm pasted on the face.
     'cloud': SignAnimation(
       id: 'cloud',
       gloss: 'CLOUD',
       keys: [
         _k(
-          _both(_five, shoulder: 126, elbow: 124, wrist: -30, lift: 1.0),
+          _both(_five, shoulder: 134, elbow: 104, wrist: -30, lift: 1.0),
           travel: 0,
           hold: 50,
         ),
         _k(
-          _both(_five, shoulder: 140, elbow: 118, wrist: -30, lift: 1.0),
+          _both(_five, shoulder: 118, elbow: 104, wrist: -30, lift: 1.0),
           hold: 60,
         ),
       ],
@@ -1837,7 +2084,7 @@ abstract final class SignLibrary {
           _atFace(
             _xHand,
             _FaceSpot.mouth,
-            wrist: -18,
+            wrist: -26,
             face: const FacePose(mouth: 0.45, eyes: 0.55),
           ),
           travel: 0,
@@ -1941,12 +2188,19 @@ abstract final class SignLibrary {
   static PoseKey _k(SignPose pose, {int travel = 200, int hold = 0}) =>
       PoseKey(pose: pose, travelMs: travel, holdMs: hold);
 
+  /// Right hand at a neutral place in the signing space.
+  ///
+  /// The defaults are the chest space, not the old 12/198 which put the
+  /// fingertips beside the eye: at shoulder 30 and elbow 240 the forearm
+  /// crosses the lower chest and the palm sits at sternum height. `wrist` is
+  /// left at the authored default because most signs pass their own angles and
+  /// rely on it; a sign that wants an upright hand passes the wrist explicitly.
   static SignPose _hand(
     HandShape hand, {
-    double shoulder = 12,
-    double elbow = 198,
+    double shoulder = 30,
+    double elbow = 240,
     double wrist = -10,
-    double lift = 0.55,
+    double lift = 0.5,
     double lower = 0,
     bool invert = false,
     FacePose face = FacePose.neutral,
@@ -1960,6 +2214,30 @@ abstract final class SignLibrary {
       palm: invert ? 150 : 0,
       lift: lift,
       hand: hand,
+    ),
+    face: face,
+  );
+
+  /// The dominant hand aimed at a place, solved instead of authored.
+  ///
+  /// For a sign whose whole meaning is where the hand sits and which way it
+  /// faces — IX is the only one so far. [palm] is the direction the fingers
+  /// end up pointing, in the rig's own degrees-from-straight-down, positive
+  /// toward the side the hand is on.
+  static SignPose _pointTo(
+    Offset at, {
+    required double palm,
+    double lift = 0.45,
+    FacePose face = FacePose.neutral,
+  }) => SignPose(
+    name: 'sign',
+    left: ArmPose.resting,
+    right: AvatarPainter.armTo(
+      side: 1,
+      target: at,
+      armLift: lift,
+      palm: palm,
+      hand: HandShape.point,
     ),
     face: face,
   );
@@ -1990,6 +2268,14 @@ abstract final class SignLibrary {
   /// measured across the range, the two sets of fingertips are still 0.14 of the
   /// card apart there, so they sit on the temples without meeting, and past 142
   /// they overlap and cross the eyes. Below ~126 they are outside the head.
+  ///
+  /// [meet] is for the signs whose two hands are one gesture — NAME's tap,
+  /// SCHOOL's clap, FRIEND's hook. It keeps the authored height and palm
+  /// direction and solves each arm so the two wrists end up [meet] apart at the
+  /// middle of the signing space. Without it a mirrored pair sits out at its own
+  /// shoulder and a contact sign renders as the same symmetric shrug as every
+  /// other one; only the signs that are genuinely two separate moving hands —
+  /// the weather, BOTH, WANT — should be left unsolved.
   static SignPose _both(
     HandShape hand, {
     required double shoulder,
@@ -1997,25 +2283,51 @@ abstract final class SignLibrary {
     double wrist = -8,
     double lift = 0.5,
     double lower = 0,
+    double? meet,
     FacePose face = FacePose.neutral,
-  }) => SignPose(
-    name: 'sign',
-    left: ArmPose(
-      shoulder: shoulder - lower,
-      elbow: elbow,
-      wrist: -wrist,
-      lift: lift,
-      hand: hand,
-    ),
-    right: ArmPose(
-      shoulder: shoulder - lower,
-      elbow: elbow,
-      wrist: wrist,
-      lift: lift,
-      hand: hand,
-    ),
-    face: face,
-  );
+  }) {
+    final s = shoulder - lower;
+    final authored = SignPose(
+      name: 'sign',
+      left: ArmPose(
+        shoulder: s,
+        elbow: elbow,
+        wrist: -wrist,
+        lift: lift,
+        hand: hand,
+      ),
+      right: ArmPose(
+        shoulder: s,
+        elbow: elbow,
+        wrist: wrist,
+        lift: lift,
+        hand: hand,
+      ),
+      face: face,
+    );
+    if (meet == null) return authored;
+    final near = AvatarPainter.armOf(authored, 1);
+    final far = AvatarPainter.armOf(authored, -1);
+    final height = (near.wrist.dy + far.wrist.dy) / 2;
+    return SignPose(
+      name: 'sign',
+      left: AvatarPainter.armTo(
+        side: -1,
+        target: Offset(0.5 - meet / 2, height),
+        armLift: lift,
+        palm: far.palmAngle,
+        hand: hand,
+      ),
+      right: AvatarPainter.armTo(
+        side: 1,
+        target: Offset(0.5 + meet / 2, height),
+        armLift: lift,
+        palm: near.palmAngle,
+        hand: hand,
+      ),
+      face: face,
+    );
+  }
 
   /// The same hand mirrored onto both sides of the body.
   ///
@@ -2056,41 +2368,94 @@ abstract final class SignLibrary {
 
   /// Dominant hand over a supporting non-dominant palm.
   ///
-  /// The support arm is folded hard and lifted, which is the only shape the
-  /// joint model has that brings a hand toward the middle of the chest: measured
-  /// across every shoulder and elbow the rig reaches, the two wrists get no
-  /// closer than 0.21 of the card (a palm is 0.078), and the hanging support arm
-  /// the signs used to be authored over left them 0.36 apart. So the base is
-  /// close, and the dominant hand finishes the gesture rather than meeting the
-  /// other palm exactly.
+  /// The support arm is solved, not authored. Guessing four angles for it put
+  /// the two hands on opposite sides of the body — measured across every
+  /// shoulder and elbow the rig reaches, a mirrored pair never came inside 0.21
+  /// of the card, so 19 of the two-handed signs rendered as the same symmetric
+  /// shrug. Instead the working hand slides into the centre signing space and
+  /// the base hand is solved to sit under it, which is where a signer's
+  /// non-dominant hand actually is.
+  ///
+  /// Passing [supportElbow] opts a sign out and keeps the hand-authored base;
+  /// GOOD, TIME and MORNING use that because the corpus places their base hand
+  /// somewhere a solved palm-under-palm default would not put it.
   static SignPose _two(
     HandShape dominant,
     HandShape support, {
     required double shoulder,
     required double elbow,
+    double wrist = -8,
     double lift = 0.5,
     double lower = 0,
     bool invert = false,
+    double supportShoulder = 24,
+    double? supportElbow,
+    double supportWrist = -62,
+    double supportLift = 0.68,
     FacePose face = FacePose.neutral,
-  }) => SignPose(
-    name: 'sign',
-    left: ArmPose(
-      shoulder: 24,
-      elbow: 192,
-      wrist: -62,
-      lift: 0.68,
-      hand: support,
-    ),
-    right: ArmPose(
+  }) {
+    final working = ArmPose(
       shoulder: shoulder - lower,
       elbow: elbow,
-      wrist: -8,
+      wrist: wrist,
       palm: invert ? 170 : 0,
       lift: lift,
       hand: dominant,
-    ),
-    face: face,
-  );
+    );
+    if (supportElbow != null) {
+      return SignPose(
+        name: 'sign',
+        left: ArmPose(
+          shoulder: supportShoulder,
+          elbow: supportElbow,
+          wrist: supportWrist,
+          lift: supportLift,
+          hand: support,
+        ),
+        right: working,
+        face: face,
+      );
+    }
+
+    SignPose withRight(ArmPose arm) =>
+        SignPose(name: 'sign', left: ArmPose.resting, right: arm, face: face);
+
+    // Two-link solves are exact for a reachable target, so the authored angles
+    // survive the round trip unchanged apart from the shift applied to them.
+    final authored = AvatarPainter.armOf(withRight(working), 1);
+    final centred = AvatarPainter.armTo(
+      side: 1,
+      target: authored.wrist - const Offset(_twoSpace, 0),
+      armLift: lift,
+      palm: authored.palmAngle,
+      hand: dominant,
+    );
+    final at = AvatarPainter.armOf(withRight(centred), 1);
+    final base = (at.wrist + at.palmTop) / 2;
+    return SignPose(
+      name: 'sign',
+      left: AvatarPainter.armTo(
+        side: -1,
+        // Just inside and under the working palm: the base hand catches it
+        // rather than standing beside it.
+        target: base + const Offset(-0.010, 0.030),
+        armLift: 0.42,
+        // Fingers pointing inward and slightly up, which is a palm facing the
+        // viewer ready to be tapped.
+        palm: 112,
+        hand: support,
+      ),
+      right: centred,
+      face: face,
+    );
+  }
+
+  /// How far a two-handed sign slides off its own shoulder and into the centre
+  /// of the signing space, in units of the card. Sized so the solved base hand
+  /// lands about 0.2 from its own shoulder: far enough across that the two
+  /// hands overlap, near enough that the support arm still has a bend in it
+  /// instead of straight-lining across the chest.
+  static const _twoSpace = 0.14;
 }
 
 /// A feature of the face, at the arm angles that put a hand on it.
@@ -2118,10 +2483,19 @@ enum _FaceSpot {
   eye(146, 120, 1.0),
 
   /// The corner of the mouth, where air leaves: WIND, BLOW.
-  cheek(150, 132, 1.0),
+  ///
+  /// The two lower entries come up from below the jaw rather than over the
+  /// brow. The first versions drove the upper arm up and folded the forearm
+  /// back across the face, which parks the wrist at y 0.28 with a near-level
+  /// palm — the whole flat hand then lies sideways *across* the face and its own
+  /// height sweeps the eye band (measured: EAT 34.7%, WATER 36.8% of the eyes).
+  /// Shallower shoulder, deeper elbow, and the same hand arrives under the chin
+  /// with the fingertips at the mouth corner instead: y 0.307, palm 254, tip
+  /// (0.543, 0.285).
+  cheek(146, 142, 1.0),
 
   /// The lips: EAT, WATER, CONSUME, HOT.
-  mouth(150, 138, 1.0),
+  mouth(146, 148, 1.0),
 
   /// Point of the chin: MOTHER, THANK-YOU.
   chin(152, 146, 1.0);

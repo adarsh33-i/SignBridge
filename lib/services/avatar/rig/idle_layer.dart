@@ -29,10 +29,10 @@ abstract final class IdleLayer {
     final gaze = gazeAt(base, ms);
     final authored = base.face;
     // A blink mid-marker would smear the very signal the face is sending —
-    // [wh-q] furrows, [y/n-q] raises. The idle blink only runs while the
-    // authored face is neutral.
-    final marked =
-        authored.brow != 0 || authored.eyes != 0 || authored.mouth >= 0.1;
+    // a mouthed morpheme or wide eyes. It must not suppress a held brow: a
+    // question raises the brows for whole seconds, and a face that stops
+    // blinking for a whole sentence reads as a still image.
+    final marked = authored.eyes != 0 || authored.mouth >= 0.1;
     final blink = marked ? authored.blink : math.max(authored.blink, blinkAt(ms));
     return base.copyWith(
       breath: breath,
@@ -41,9 +41,7 @@ abstract final class IdleLayer {
         // An authored marker wins: it carries grammatical meaning.
         headTurn: authored.headTurn == 0 ? gaze : authored.headTurn,
         headTilt: authored.headTilt == 0 ? gaze * 4 : authored.headTilt,
-        smile: authored.smile == 0 && authored.mouth < 0.1
-            ? 0.32
-            : authored.smile,
+        gaze: authored.gaze == 0 ? gaze : authored.gaze,
       ),
     );
   }
@@ -56,14 +54,15 @@ abstract final class IdleLayer {
   }
 
   /// Where the head looks: toward the hand that is doing the signing, plus a
-  /// slow drift.
+  /// slow drift. The drift is what the pupils and the head do while nobody is
+  /// signing; at 0.08 it was below the size the eyes are drawn at.
   static double gazeAt(SignPose pose, int ms) {
     final toward = ((pose.right.shoulder - pose.left.shoulder) / 150).clamp(
       -0.55,
       0.55,
     );
     final drift =
-        0.08 * math.sin(2 * math.pi * (ms % driftCycleMs) / driftCycleMs);
+        0.16 * math.sin(2 * math.pi * (ms % driftCycleMs) / driftCycleMs);
     return toward + drift;
   }
 }

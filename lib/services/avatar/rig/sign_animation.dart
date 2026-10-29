@@ -43,6 +43,7 @@ class SignAnimation {
     required this.segments,
     required this.totalMs,
     required this.faceOnly,
+    required this.spreadsFace,
   });
 
   factory SignAnimation({
@@ -57,6 +58,15 @@ class SignAnimation {
     /// reads this to keep the arms on the journey between the signs around
     /// the marker instead of dropping them to the marker's authored rest.
     bool faceOnly = false,
+
+    /// True for a marker whose grammar is a *scope*, not a beat.
+    ///
+    /// A question raises the brows for the whole question, not for the last
+    /// half second of it. When a sequence carries one of these, the timeline
+    /// holds its face over every sign instead of playing it as a trailing
+    /// 480ms beat. A marker that is one syllable — a head shake, a mouthed
+    /// "mm" — stays a beat.
+    bool spreadsFace = false,
   }) {
     assert(keys.isNotEmpty, 'sign $id has no keyframes');
     final passes = <List<PoseKey>>[];
@@ -101,6 +111,7 @@ class SignAnimation {
       segments: spans,
       totalMs: cursor,
       faceOnly: faceOnly,
+      spreadsFace: spreadsFace,
     );
   }
 
@@ -156,6 +167,10 @@ class SignAnimation {
   /// True for non-manual markers: face grammar with no manual content.
   final bool faceOnly;
 
+  /// True when the marker's grammar covers the signs around it, not just its
+  /// own beat — the question faces do.
+  final bool spreadsFace;
+
   Duration get duration => Duration(milliseconds: totalMs);
 
   SignPose poseAt(Duration elapsed) {
@@ -180,8 +195,43 @@ class SignAnimation {
   /// a hand travelling between two signs moves and lands like a hand, not like
   /// a picture being dragged: the arm commits first and the new handshape
   /// arrives last, exactly as it does mid-sign.
-  static SignPose interpolate(SignPose from, SignPose to, double t) =>
-      _chain(from, to, t);
+  ///
+  /// A joint angle is a direction, and between two signs nobody authored which
+  /// way round it turns. The arm's angles are therefore shifted a whole turn
+  /// nearer to where they start before travelling, so an elbow leaving the side
+  /// at 16 and arriving on the chest at 240 folds across the belly for 136
+  /// degrees instead of winding up past the shoulder for 224. Inside a sign the
+  /// numbers are left exactly as authored, because there the path is the sign.
+  /// The landing pose is still [to] to the degree, since a shift of a whole turn
+  /// draws the same pose.
+  static SignPose interpolate(SignPose from, SignPose to, double t) {
+    if (t <= 0) return from;
+    if (t >= 1) return to;
+    return _chain(from, _nearer(from, to), t);
+  }
+
+  static SignPose _nearer(SignPose from, SignPose to) => SignPose(
+    name: to.name,
+    left: _nearerArm(from.left, to.left),
+    right: _nearerArm(from.right, to.right),
+    face: to.face,
+    breath: to.breath,
+  );
+
+  static ArmPose _nearerArm(ArmPose from, ArmPose to) => ArmPose(
+    shoulder: _shortest(from.shoulder, to.shoulder),
+    elbow: _shortest(from.elbow, to.elbow),
+    wrist: _shortest(from.wrist, to.wrist),
+    palm: to.palm,
+    lift: to.lift,
+    hand: to.hand,
+    visible: to.visible,
+  );
+
+  static double _shortest(double from, double to) {
+    final delta = (to - from) % 360.0;
+    return from + (delta > 180.0 ? delta - 360.0 : delta);
+  }
 
   /// The pose half-way through travelling from [from] to [to].
   ///

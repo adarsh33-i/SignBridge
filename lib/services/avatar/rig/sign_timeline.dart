@@ -9,7 +9,12 @@ import '../../translate/sign_token.dart';
 /// only correct inside a widget cannot be tested at all, so the timeline lives
 /// here rather than behind the widget's private types.
 class SignTimeline {
-  const SignTimeline._(this.cues, this.totalMs);
+  const SignTimeline._(
+    this.cues,
+    this.totalMs, {
+    this.questionFace,
+    this.questionUntilMs = 0,
+  });
 
   factory SignTimeline.of(List<SignToken> sequence) {
     final animations = SignLibrary.forSequence(sequence);
@@ -29,7 +34,39 @@ class SignTimeline {
           : SignPose.resting;
       cursor += _msFrom(end, next);
     }
-    return SignTimeline._(cues, cursor);
+
+    // A question face is a scope, not a beat. Find the one marker that owns it
+    // and where that scope ends. Two scoping markers in one caption (a yes/no
+    // and a wh-question, say) would fight over the brows, so neither spreads
+    // and each plays its own beat.
+    FacePose? questionFace;
+    var questionUntilMs = 0;
+    final scoping = cues.where((c) => c.animation.spreadsFace).toList();
+    if (scoping.length == 1) {
+      final cue = scoping.single;
+      final marker = cue.animation;
+      questionFace = marker.poseAt(Duration(milliseconds: marker.totalMs)).face;
+      final ramp = marker.frames.length > 1
+          ? marker.frames.first.holdMs + marker.frames[1].travelMs
+          : marker.totalMs;
+      final trailing = cue.endMs >= cues.last.endMs;
+      if (trailing) {
+        // The marker takes the face over at its own ramp, and the exit after it
+        // relaxes both the hands and the expression.
+        questionUntilMs = cue.startMs + ramp;
+      } else {
+        // A leading or mid-sentence marker holds the face to the last sign.
+        final signs = cues.where((c) => !c.animation.faceOnly);
+        questionUntilMs = signs.isEmpty ? cue.endMs : signs.last.endMs;
+      }
+    }
+
+    return SignTimeline._(
+      cues,
+      cursor,
+      questionFace: questionFace,
+      questionUntilMs: questionUntilMs,
+    );
   }
 
   /// How long the body gets to move between two poses.
@@ -47,13 +84,29 @@ class SignTimeline {
           .clamp(SignLibrary.restGap.inMilliseconds.toDouble(), _maxGapMs)
           .round();
 
-  /// The largest shoulder or elbow change either arm has to make. The finger
-  /// curls are left out: they travel hundredths of a unit and never dominate a
-  /// transition, and a face-only marker therefore keeps the plain word break.
+  /// The largest joint change either arm has to make. The finger curls are left
+  /// out: they travel hundredths of a unit and never dominate a transition, and
+  /// a face-only marker therefore keeps the plain word break.
+  ///
+  /// The wrist is *not* left out. In the chest space the wrist is how a sign
+  /// points — YOU turns it to 78 and the fingerspelled hand holds -70 — so two
+  /// neighbouring signs can disagree by nearly 150 degrees while their shoulders
+  /// barely move. Without the wrist in the distance, every such word break got
+  /// the minimum 120ms and the hand spun 34 degrees in a frame.
   static double _posture(SignPose a, SignPose b) {
+    // A joint angle is a direction, so the distance between two of them is the
+    // short arc, not the subtraction: the same support fold is authored as +192
+    // at one sign and -168 at the next, and their signed difference would read
+    // as a full turn of travel that never happens.
+    double turn(double from, double to) {
+      final d = (from - to).abs() % 360.0;
+      return d > 180.0 ? 360.0 - d : d;
+    }
+
     double far(ArmPose x, ArmPose y) => [
-      (x.shoulder - y.shoulder).abs(),
-      (x.elbow - y.elbow).abs(),
+      turn(x.shoulder, y.shoulder),
+      turn(x.elbow, y.elbow),
+      turn(x.wrist, y.wrist),
     ].reduce((p, q) => p > q ? p : q);
     return [
       far(a.right, b.right),
@@ -71,6 +124,13 @@ class SignTimeline {
 
   final List<SignCue> cues;
   final int totalMs;
+
+  /// The face a scoping non-manual marker holds over the signs, if the caption
+  /// carries exactly one such marker.
+  final FacePose? questionFace;
+
+  /// When the marker takes the face back over (or the last sign ends).
+  final int questionUntilMs;
 
   bool get isEmpty => cues.isEmpty;
 
@@ -107,6 +167,39 @@ class SignTimeline {
   }
 
   SignPose poseAt(int ms) {
+    final pose = _poseAt(ms);
+    return _withQuestionFace(pose, ms);
+  }
+
+  /// Layers the scoping non-manual marker over the pose, fading in over the
+  /// first quarter second.
+  ///
+  /// Only the brow and the head tilt are borrowed: the turn of the head is
+  /// left to the idle layer so the eyes keep tracking the hand instead of the
+  /// whole face freezing for the length of a question. A sign that authors its
+  /// own brow (THUNDER's furrow, say) keeps it.
+  SignPose _withQuestionFace(SignPose pose, int ms) {
+    final face = questionFace;
+    if (face == null || ms >= questionUntilMs) return pose;
+    final authored = pose.face;
+    if (authored.brow != 0 || authored.headTilt != 0) {
+      final index = cueIndexAt(ms);
+      final markerNow = index >= 0 && cues[index].animation.faceOnly;
+      if (!markerNow) return pose;
+    }
+    final t = (ms / _questionFadeMs).clamp(0.0, 1.0);
+    final k = t * t * (3 - 2 * t);
+    return pose.copyWith(
+      face: authored.copyWith(
+        brow: authored.brow + (face.brow - authored.brow) * k,
+        headTilt: authored.headTilt + (face.headTilt - authored.headTilt) * k,
+      ),
+    );
+  }
+
+  static const _questionFadeMs = 240;
+
+  SignPose _poseAt(int ms) {
     if (cues.isEmpty) return SignPose.resting;
     // The settle curve is a cubic, so a position outside the timeline does not
     // clamp — it extrapolates, and the arm flies off. Callers hold the playhead
@@ -203,16 +296,26 @@ class SignTimeline {
     final j = cueIndexAt(ms);
     final sourceIndex = j < 0 ? faceCueIndex : j;
     final source = cues[sourceIndex].animation;
-    final face = source.poseAt(
+    final marked = source.poseAt(
       Duration(
         milliseconds: (ms - cues[sourceIndex].startMs).clamp(0, source.totalMs),
       ),
     );
+    // A trailing marker releases its face with the exit ramp, so the avatar
+    // does not settle into a resting pose while still wearing the question's
+    // furrow. A marker in the middle of a caption hands its face to the next
+    // cue instead and never reaches this branch.
+    var face = marked.face;
+    if (last == cues.length - 1 && ms >= cues[last].endMs) {
+      final span = totalMs - cues[last].endMs;
+      final t = span <= 0 ? 1.0 : (ms - cues[last].endMs) / span;
+      face = FacePose.lerp(face, FacePose.neutral, SignAnimation.settle(t));
+    }
     return SignPose(
-      name: face.name,
+      name: marked.name,
       left: arms.left,
       right: arms.right,
-      face: face.face,
+      face: face,
       breath: arms.breath,
     );
   }

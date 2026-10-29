@@ -53,21 +53,29 @@ void main() {
       expect(calm.face.blink, closeTo(0.4, 0.001));
     });
 
-    test('never fires mid-marker: the face is carrying grammar', () {
+    test('never fires under a mouthed or wide-eyed marker', () {
+      final mouthed = SignPose.resting.copyWith(
+        face: const FacePose(mouth: 0.45),
+      );
+      expect(IdleLayer.apply(mouthed, IdleLayer.blinkOpenMs).face.blink, 0);
+      final wide = SignPose.resting.copyWith(face: const FacePose(eyes: 0.5));
+      expect(IdleLayer.apply(wide, IdleLayer.blinkOpenMs).face.blink, 0);
+      // A neutral face at the same instant still blinks.
+      expect(IdleLayer.apply(SignPose.resting, IdleLayer.blinkOpenMs).face.blink, 1);
+    });
+
+    test('a held brow still blinks: a question lasts seconds', () {
+      // The question face now spans the whole sentence, so suppressing the
+      // blink for as long as the brow is raised would freeze the eyes for
+      // every question. The brows carry grammar; the lids carry life.
       final furrowed = SignPose.resting.copyWith(
         face: const FacePose(brow: -0.85),
       );
       expect(
         IdleLayer.apply(furrowed, IdleLayer.blinkOpenMs).face.blink,
-        0,
-        reason: 'a wh-question hold must not blink shut',
+        1,
+        reason: 'the held wh-question brow must not stop the blink',
       );
-      final mouthed = SignPose.resting.copyWith(
-        face: const FacePose(mouth: 0.45),
-      );
-      expect(IdleLayer.apply(mouthed, IdleLayer.blinkOpenMs).face.blink, 0);
-      // A neutral face at the same instant still blinks.
-      expect(IdleLayer.apply(SignPose.resting, IdleLayer.blinkOpenMs).face.blink, 1);
     });
   });
 
@@ -92,9 +100,26 @@ void main() {
     });
   });
 
+  group('eyes', () {
+    test('the pupils look where the head looks', () {
+      final rightUp = IdleLayer.apply(raised(right: 120), 0);
+      expect(rightUp.face.gaze, greaterThan(0.4));
+      final leftUp = IdleLayer.apply(raised(left: 120), 0);
+      expect(leftUp.face.gaze, lessThan(-0.4));
+    });
+
+    test('an authored gaze wins: it is a deliberate look', () {
+      final posed = SignPose.resting.copyWith(face: const FacePose(gaze: 0.8));
+      expect(IdleLayer.apply(posed, 2200).face.gaze, 0.8);
+    });
+  });
+
   group('rest expression', () {
-    test('adds a smile only to a closed, unsmiling mouth', () {
-      expect(IdleLayer.apply(SignPose.resting, 700).face.smile, closeTo(0.32, 0.001));
+    test('never invents a smile', () {
+      // The layer used to force a 0.32 smile onto every still mouth. It made
+      // the avatar look pleasant and completely frozen: the same expression
+      // for every sign, regardless of what the sign meant.
+      expect(IdleLayer.apply(SignPose.resting, 700).face.smile, 0);
       final mouthed = SignPose.resting.copyWith(face: const FacePose(mouth: 0.6));
       expect(IdleLayer.apply(mouthed, 700).face.smile, 0);
       final authored = SignPose.resting.copyWith(face: const FacePose(smile: 0.9));

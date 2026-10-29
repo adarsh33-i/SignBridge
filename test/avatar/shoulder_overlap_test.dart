@@ -15,9 +15,9 @@ import 'package:sign_bridge/services/translate/sign_token.dart';
 /// geometry that produces them.
 void main() {
   const size = 360;
-  const shirt = <int>[47, 107, 224];
-  const sleeveFront = <int>[31, 79, 174];
-  const sleeveBack = <int>[34, 83, 179];
+  const shirt = <int>[215, 170, 182];
+  const sleeveFront = <int>[207, 157, 171];
+  const sleeveBack = <int>[201, 150, 165];
 
   Future<Uint8List> render(SignPose pose) async {
     final recorder = ui.PictureRecorder();
@@ -29,10 +29,12 @@ void main() {
     return data!.buffer.asUint8List();
   }
 
-  /// Unit space to pixels, mirroring the canvas transform in [AvatarPainter.paint].
+  /// Unit space to pixels, mirroring the canvas transform in
+  /// [AvatarPainter.paint]: zoom 1.05 about (0.5, 1.16), top inset 0.032,
+  /// face shift applied after the zoom.
   Offset toPixel(SignPose pose, Offset unit) => Offset(
-        (unit.dx + pose.face.shift * 0.04) * size,
-        unit.dy * size + size * 0.02,
+        (0.5 + (unit.dx - 0.5) * 1.05 + pose.face.shift * 0.04) * size,
+        (0.032 + 1.16 + (unit.dy - 1.16) * 1.05) * size,
       );
 
   bool isNear(List<int> rgb, List<int> want) =>

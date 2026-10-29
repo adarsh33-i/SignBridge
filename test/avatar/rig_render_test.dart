@@ -158,9 +158,9 @@ void main() {
     );
   });
 
-  testWidgets('idle life: breath peak and resting smile on a still body', (tester) async {
-    // Half a breath cycle in: chest lifted, eyes open, mouth settled into the
-    // resting smile the player adds on top of every authored pose.
+  testWidgets('idle life: breath peak and a drifting gaze on a still body', (tester) async {
+    // Half a breath cycle in: chest lifted, eyes open, head and pupils drifted
+    // toward the side. No smile is invented — a permanent one erased the face.
     final pose = IdleLayer.apply(SignPose.resting, IdleLayer.breathCycleMs ~/ 2);
     expect(pose.breath, closeTo(1.0, 0.001));
     await tester.pumpWidget(frame(pose));

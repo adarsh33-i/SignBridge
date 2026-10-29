@@ -5,19 +5,21 @@ import 'package:flutter/material.dart';
 
 import 'sign_pose.dart';
 
-/// Flat 2D signing character palette.
+/// Soft-shaded signing character palette — the illustrated-woman look:
+/// light warm skin, chestnut hair, dusty-pink tee, mid-blue jeans.
 class AvatarPalette {
   const AvatarPalette({
-    this.skin = const ui.Color(0xFFE8B98F),
-    this.skinShade = const ui.Color(0xFFD29C72),
-    this.hair = const ui.Color(0xFF3A2B23),
-    this.shirt = const ui.Color(0xFF2F6BE0),
-    this.shirtShade = const ui.Color(0xFF2456B8),
-    this.sleeve = const ui.Color(0xFF1F4FAE),
-    this.pants = const ui.Color(0xFF3B4A63),
-    this.outline = const ui.Color(0xFF243042),
-    this.face = const ui.Color(0xFF2A2320),
-    this.skinDeep = const ui.Color(0xFFB87F58),
+    this.skin = const ui.Color(0xFFF7D7BE),
+    this.skinShade = const ui.Color(0xFFEAC0A0),
+    this.hair = const ui.Color(0xFF7C4A2D),
+    this.hairShade = const ui.Color(0xFF5C3620),
+    this.shirt = const ui.Color(0xFFD7AAB6),
+    this.shirtShade = const ui.Color(0xFFC4909F),
+    this.sleeve = const ui.Color(0xFFCF9DAB),
+    this.pants = const ui.Color(0xFF6E86AA),
+    this.outline = const ui.Color(0xFF463227),
+    this.face = const ui.Color(0xFF33261E),
+    this.skinDeep = const ui.Color(0xFFD8A67E),
   });
 
   final ui.Color skin;
@@ -26,15 +28,18 @@ class AvatarPalette {
   /// Deeper skin tone used for every crease, socket and shadow on the body.
   final ui.Color skinDeep;
   final ui.Color hair;
+
+  /// Darker brown for bun strands, the hair-tie band and parting depth.
+  final ui.Color hairShade;
   final ui.Color shirt;
   final ui.Color shirtShade;
 
-  /// Raglan sleeve and collar: a second shirt tone so the arm reads as
-  /// attached to a shoulder rather than floating next to one.
+  /// Raglan sleeve and collar ribbing: a second shirt tone so the arm reads
+  /// as attached to a shoulder rather than floating next to one.
   final ui.Color sleeve;
 
-  /// Trousers below the shirt hem, so the torso is a cropped standing figure
-  /// rather than a long blue column.
+  /// Jeans below the shirt hem, so the torso is a cropped standing figure
+  /// rather than a long column.
   final ui.Color pants;
   final ui.Color outline;
   final ui.Color face;
@@ -83,7 +88,13 @@ class AvatarPainter extends CustomPainter {
   /// stays one contour. 0.0136 keeps ~2px of overlap at 1600 while leaving each
   /// finger wide enough to read as its own digit.
   static const _unitFingerGap = 0.0136;
-  static const _unitHeadR = 0.099;
+
+  /// Skull radius. Shrinking this rather than widening the shoulders fixes the
+  /// chibi read without moving the arm anchors: every authored sign angle and
+  /// every `_FaceSpot` calibration is measured against the shoulder joint, so
+  /// a wider frame breaks face reach across the library, while a smaller head
+  /// only tightens the target the hands are already hitting.
+  static const _unitHeadR = 0.088;
   static const _unitHeadY = 0.245;
 
   /// Reference head radius that the face feature offsets were drawn against.
@@ -93,6 +104,13 @@ class AvatarPainter extends CustomPainter {
 
   /// Ink weight in unit space. Applied outside every silhouette.
   static const _ink = 0.0115;
+
+  /// Figure zoom. The unit geometry already fills the canvas, so "bigger" is
+  /// a magnify about the bottom-centre anchor (the figure is grounded at the
+  /// hem) with [_zoomTopInset] absorbing the lost headroom at the bun.
+  static const _zoom = 1.05;
+  static const _zoomAnchorY = 1.16;
+  static const _zoomTopInset = 0.032;
 
   /// How far a shoulder lifts, and how far outward it rolls, once the arm
   /// leaves the side of the body. The girdle has to move with the arm or the
@@ -145,10 +163,9 @@ class AvatarPainter extends CustomPainter {
   }
 
   /// One arm's joints in unit space: shoulder, elbow, wrist, the angle the palm
-  /// is drawn at, and the top of the palm. [_paintArm] draws through this and
-  /// the test suite asserts against it, so a limb cannot move without the
-  /// shoulder-occlusion check noticing.
-  @visibleForTesting
+  /// is drawn at, and the top of the palm. [_paintArm] draws through this, the
+  /// library solves against it, and the test suite asserts on it, so a limb
+  /// cannot move without the shoulder-occlusion check noticing.
   static ({
     Offset shoulder,
     Offset elbow,
@@ -181,6 +198,82 @@ class AvatarPainter extends CustomPainter {
     );
   }
 
+  /// The arm angles that land a wrist on [target] — the inverse of [armOf].
+  ///
+  /// A two-link solve in the rig's own convention (angles measured from
+  /// straight down, positive swinging outward on each side), so it works for
+  /// either arm without a mirrored copy of the maths. [armOf] derives the
+  /// shoulder height from the angle it is drawn at, so this iterates: the
+  /// shrug is at most 0.012 of the card and three passes settle well inside a
+  /// pixel of the target.
+  ///
+  /// This exists because authoring a two-handed sign by guessing four support
+  /// angles never put the non-dominant palm under the dominant hand: the hands
+  /// ended up mirrored on either side of the body, 0.3 apart. Solving to a
+  /// point instead means the base hand goes where the gesture actually is.
+  static ArmPose armTo({
+    required double side,
+    required Offset target,
+    double breath = 0,
+    double armLift = 0.5,
+    double? palm,
+    bool elbowUp = false,
+    HandShape hand = HandShape.flat,
+  }) {
+    var shoulderDeg = 0.0;
+    var elbowDeg = 0.0;
+    for (var pass = 0; pass < 3; pass++) {
+      final raise = _raiseOf(shoulderDeg);
+      final joint = Offset(
+        0.5 + side * (_unitShoulderX + breath * 0.005 + raise * _unitShrugOut),
+        _unitShoulderY - breath * 0.007 - raise * _unitShrug,
+      );
+      // [armOf] shoves the elbow inward and up by the arm's own lift, so the
+      // chain has to start from the target minus that nudge.
+      final reach =
+          target - joint + Offset(side * armLift * 0.016, armLift * 0.018);
+      final x = side * reach.dx;
+      final y = reach.dy;
+      final d = math.sqrt(x * x + y * y);
+      if (d < 1e-6) {
+        shoulderDeg = 0;
+        elbowDeg = 0;
+        continue;
+      }
+      // A target out of reach keeps its direction and takes up the slack; one
+      // close enough to fold the arm back on itself would leave the elbow
+      // angle undefined, so it stops at full extension the other way.
+      final span = math.min(d, _unitUpper + _unitFore - 1e-3);
+      final inner = math.max(span, (_unitUpper - _unitFore).abs() + 1e-3);
+      final ux = x * inner / d;
+      final uy = y * inner / d;
+      final bearing = math.atan2(ux, uy);
+      final cosine =
+          ((_unitUpper * _unitUpper + inner * inner - _unitFore * _unitFore) /
+                  (2 * _unitUpper * inner))
+              .clamp(-1.0, 1.0);
+      final upperArm = bearing + (elbowUp ? -math.acos(cosine) : math.acos(cosine));
+      shoulderDeg = _deg(upperArm);
+      final forearm = Offset(
+        ux - _unitUpper * math.sin(upperArm),
+        uy - _unitUpper * math.cos(upperArm),
+      );
+      elbowDeg = _deg(math.atan2(forearm.dx, forearm.dy)) - shoulderDeg;
+    }
+    final a2 = side * (shoulderDeg + elbowDeg);
+    return ArmPose(
+      shoulder: shoulderDeg,
+      elbow: elbowDeg,
+      wrist: palm == null ? 0 : side * (palm - a2),
+      lift: armLift,
+      hand: hand,
+    );
+  }
+
+  /// `dart:math` works in radians; the rig authors in degrees. The inverse of
+  /// the `degrees` helper in sign_pose.dart, which converts the other way.
+  static double _deg(double fromRadians) => fromRadians * 180 / math.pi;
+
   @override
   void paint(Canvas canvas, Size size) {
     final s = math.min(size.width, size.height);
@@ -196,8 +289,11 @@ class AvatarPainter extends CustomPainter {
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.0042);
 
     canvas.save();
-    canvas.translate(dx, s * 0.02);
+    canvas.translate(dx, s * _zoomTopInset);
     canvas.scale(s);
+    canvas.translate(0.5, _zoomAnchorY);
+    canvas.scale(_zoom);
+    canvas.translate(-0.5, -_zoomAnchorY);
     canvas.translate(pose.face.shift * 0.04, 0);
 
     _paintLegs(canvas);
@@ -234,6 +330,7 @@ class AvatarPainter extends CustomPainter {
     }
 
     _paintTorso(canvas);
+    _paintNeck(canvas);
     _paintArm(
       canvas,
       backIsRight ? pose.right : pose.left,
@@ -264,7 +361,9 @@ class AvatarPainter extends CustomPainter {
   /// card on purpose: a torso that ends in mid-air reads as a dress.
   void _paintLegs(Canvas canvas) {
     const top = 0.720;
-    const hip = 0.140;
+    // Hips must sit under the shirt hem, not inside it — otherwise the tee
+    // overhangs the body and the figure reads as a dress.
+    final hip = _shoulderX * 0.86;
     const hem = 1.140;
     final legs = ui.Path()
       ..moveTo(0.5 - hip, top)
@@ -276,9 +375,32 @@ class AvatarPainter extends CustomPainter {
       ..lineTo(0.5 - 0.018, hem)
       ..lineTo(0.5 - hip + 0.014, hem)
       ..close();
-    _strokedFill(canvas, legs, palette.pants);
+    canvas.drawPath(legs, _stroke(palette.outline, _ink * 2));
+    // Denim shaded like the tee: lit at the thigh, falling off toward the
+    // crop at the bottom of the card.
+    canvas.drawPath(
+      legs,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0.5, top),
+          Offset(0.5, hem),
+          const [ui.Color(0xFF7E96BA), ui.Color(0xFF64799B)],
+        ),    );
 
-    // A crease down each thigh keeps two flat panels from looking like one.
+    // Fly: a short centre seam below the shirt hem plus a waistband shadow
+    // right under it. Below that, a crease down each thigh keeps two flat
+    // panels from looking like one.
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(0.5, 0.848)
+        ..quadraticBezierTo(0.5, 0.880, 0.5, 0.905),
+      _stroke(palette.outline.withValues(alpha: 0.22), 0.005),
+    );
+    canvas.drawLine(
+      Offset(0.5 - 0.052, 0.842),
+      Offset(0.5 + 0.052, 0.842),
+      _stroke(const ui.Color(0xFF4E6484).withValues(alpha: 0.55), 0.007),
+    );
     for (final side in [-1.0, 1.0]) {
       final crease = ui.Path()
         ..moveTo(0.5 + side * 0.072, 0.860)
@@ -301,13 +423,17 @@ class AvatarPainter extends CustomPainter {
     final rightTop = _shoulderPoint(1).dy - 0.014;
     final left = 0.5 - _shoulderX;
     final right = 0.5 + _shoulderX;
-    final waist = 0.122 + pose.breath * 0.004;
-    final hem = 0.148;
+    // Waist and hem track the shoulder span. Hard-coding them beside a wider
+    // frame turned the torso into an hourglass: the pinch reads as a dress
+    // waist once the shoulders stop being narrow.
+    final waist = _shoulderX * 0.70 + pose.breath * 0.004;
+    final hem = _shoulderX * 0.87;
+    final flare = 0.014;
     final hemY = 0.812;
     final body = ui.Path()
-      ..moveTo(left - 0.020, leftTop)
+      ..moveTo(left - flare, leftTop)
       ..cubicTo(
-        left - 0.030,
+        left - flare - 0.008,
         leftTop + 0.075,
         0.5 - waist - 0.004,
         0.560,
@@ -334,9 +460,9 @@ class AvatarPainter extends CustomPainter {
       ..cubicTo(
         0.5 + waist + 0.004,
         0.560,
-        right + 0.030,
+        right + flare + 0.008,
         rightTop + 0.075,
-        right + 0.020,
+        right + flare,
         rightTop,
       )
       ..cubicTo(
@@ -348,11 +474,47 @@ class AvatarPainter extends CustomPainter {
         leftTop,
       )
       ..close();
-    _strokedFill(canvas, body, palette.shirt);
-
-    // Fold lines where the shirt hangs off the shoulders, so the chest is not
-    // one flat panel of colour.
+    canvas.drawPath(body, _stroke(palette.outline, _ink * 2));
+    // The tee reads as soft cloth, not a flat cutout: lit at the shoulders,
+    // falling off toward the hem.
+    canvas.drawPath(
+      body,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0.5, leftTop),
+          Offset(0.5, hemY + 0.028),
+          const [ui.Color(0xFFE4BEC8), ui.Color(0xFFD7AAB6), ui.Color(0xFFCB98A6)],
+          const [0.0, 0.45, 1.0],
+        ),
+    );
+    // Chest highlight: one soft radial pool of light, clipped to the shirt.
+    canvas.save();
+    canvas.clipPath(body);
+    canvas.drawCircle(
+      Offset(0.5, _shoulderY + 0.115),
+      0.17,
+      Paint()
+        ..shader = ui.Gradient.radial(
+          Offset(0.5, _shoulderY + 0.115),
+          0.17,
+          [Colors.white.withValues(alpha: 0.14), Colors.white.withValues(alpha: 0)],
+        ),
+    );
+    // Flank shadows where the cloth turns away from the light.
     for (final side in [-1.0, 1.0]) {
+      canvas.drawPath(
+        ui.Path()
+          ..moveTo(0.5 + side * 0.108, _shoulderY + 0.045)
+          ..quadraticBezierTo(
+            0.5 + side * 0.150,
+            0.660,
+            0.5 + side * 0.138,
+            hemY - 0.030,
+          ),
+        _stroke(palette.shirtShade.withValues(alpha: 0.42), 0.020),
+      );
+      // Fold lines where the shirt hangs off the shoulders, so the chest is
+      // not one flat panel of colour.
       final fold = ui.Path()
         ..moveTo(0.5 + side * 0.052, _shoulderY + 0.030)
         ..quadraticBezierTo(
@@ -366,29 +528,15 @@ class AvatarPainter extends CustomPainter {
         _stroke(palette.shirtShade.withValues(alpha: 0.55), 0.007),
       );
     }
+    canvas.restore();
   }
 
   void _paintHead(Canvas canvas) {
     final tilt = degrees(pose.face.headTilt);
-    final neckBase = _shoulderY - 0.012;
     canvas.save();
     canvas.translate(0.5, _headY + _unitHeadR * 0.9);
     canvas.rotate(tilt);
     canvas.translate(-0.5, -(_headY + _unitHeadR * 0.9));
-
-    // Neck: narrower than the head, and the jaw casts across its top so it
-    // reads as a cylinder in light rather than a slab.
-    final neckTop = _headY + _unitHeadR * 0.60;
-    canvas.drawLine(
-      Offset(0.5, neckTop),
-      Offset(0.5, neckBase),
-      _stroke(palette.skin, 0.056),
-    );
-    canvas.drawLine(
-      Offset(0.5, neckTop + 0.002),
-      Offset(0.5, neckTop + 0.026),
-      _stroke(palette.skinDeep.withValues(alpha: 0.55), 0.056),
-    );
 
     // Hair volume behind the skull, kept to the crown so the jaw stays skin.
     canvas.save();
@@ -413,44 +561,58 @@ class AvatarPainter extends CustomPainter {
     // face reads as an opening in a hood.
     _strokedFill(canvas, head, palette.skin, ink: _ink * 0.7);
 
-    // Fringe: hair clipped to the skull, so it ends on the head edge. The
-    // hairline has to cross the crown of the skull — an apex even slightly
-    // below the head's top edge leaves a skin band between the hair and the
-    // outline, and that band reads as a bald scalp.
-    final fringe = ui.Path()
-      ..moveTo(0.5 - _unitHeadR, _headY - _unitHeadR * 0.14)
-      ..cubicTo(
-        0.5 - _unitHeadR * 0.72,
-        _headY - _unitHeadR * 0.70,
-        0.5 - _unitHeadR * 0.2,
-        _headY - _unitHeadR * 1.04,
-        0.5 + _unitHeadR * 0.18,
-        _headY - _unitHeadR * 0.96,
-      )
-      ..cubicTo(
-        0.5 + _unitHeadR * 0.62,
-        _headY - _unitHeadR * 0.82,
-        0.5 + _unitHeadR * 0.86,
-        _headY - _unitHeadR * 0.42,
-        0.5 + _unitHeadR,
-        _headY - _unitHeadR * 0.06,
-      )
-      ..lineTo(0.5 + _unitHeadR, _headY - _unitHeadR * 1.4)
-      ..lineTo(0.5 - _unitHeadR, _headY - _unitHeadR * 1.4)
-      ..close();
+    // Fringe: a centre part, two locks sweeping from a scalp point at the
+    // crown out to the temples. The wedge of skin between the two inner edges
+    // is the parting; each lock is clipped to the skull so it ends on the
+    // head edge. The hairline has to cross the crown of the skull — an apex
+    // even slightly below the head's top edge leaves a skin band between the
+    // hair and the outline, and that band reads as a bald scalp.
+    final part = _unitHeadR * 0.10;
+    for (final side in [-1.0, 1.0]) {
+      canvas.save();
+      canvas.clipPath(head);
+      canvas.drawPath(
+        ui.Path()
+          ..moveTo(0.5 + side * _unitHeadR, _headY - _unitHeadR * 0.08)
+          ..cubicTo(
+            0.5 + side * _unitHeadR * 0.80,
+            _headY - _unitHeadR * 0.82,
+            0.5 + side * _unitHeadR * 0.34,
+            _headY - _unitHeadR * 1.05,
+            0.5 + side * part,
+            _headY - _unitHeadR * 0.84,
+          )
+          ..lineTo(0.5 + side * part, _headY - _unitHeadR * 1.6)
+          ..lineTo(0.5 + side * _unitHeadR * 1.6, _headY - _unitHeadR * 1.6)
+          ..close(),
+        _fill(palette.hair),
+      );
+      // No edge stroke along the hairline. A dark line the width of the hair
+      // mass's own boundary reads as a headband at card size, and the colour
+      // change from hair to skin already defines the edge.
+      canvas.restore();
+    }
+    // The parting: a hairline-thin skin sliver over the crown between the two
+    // locks. Without it the behind-skull hair mass shows through the gap; any
+    // wider and it reads as a bald stripe.
     canvas.save();
     canvas.clipPath(head);
-    canvas.drawPath(fringe, _fill(palette.hair));
-    // No edge stroke along the hairline. A dark line the width of the hair
-    // mass's own boundary reads as a headband at card size, and the colour
-    // change from hair to skin already defines the edge.
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(0.5 - part * 0.5, _headY - _unitHeadR * 0.82)
+        ..lineTo(0.5 - part * 0.2, _headY - _unitHeadR * 1.02)
+        ..lineTo(0.5 + part * 0.2, _headY - _unitHeadR * 1.02)
+        ..lineTo(0.5 + part * 0.5, _headY - _unitHeadR * 0.82)
+        ..close(),
+      _fill(palette.skin),
+    );
     canvas.restore();
 
     // Hair down the sides of the skull: without it the hair reads as a cap
-    // sitting on top of a bald head. The band is thick at the temple and thins
-    // to a tip at the jaw, and its inner edge stays near the edge of the skull
-    // below eye level. Held any further in, the two bands and the fringe close
-    // into a ring and the face becomes an opening in a hood.
+    // sitting on top of a bald head. The band hugs the skull — the updo keeps
+    // the sides tucked, so it is thin and stops at the jaw rather than hanging
+    // long. Held any further in, the two bands and the fringe close into a
+    // ring and the face becomes an opening in a hood.
     for (final side in [-1.0, 1.0]) {
       canvas.save();
       canvas.clipPath(head);
@@ -459,32 +621,159 @@ class AvatarPainter extends CustomPainter {
           ..moveTo(0.5 + side * _unitHeadR * 1.06, _headY - _unitHeadR * 0.42)
           ..quadraticBezierTo(
             0.5 + side * _unitHeadR * 1.05,
-            _headY + _unitHeadR * 0.26,
-            0.5 + side * _unitHeadR * 0.94,
-            _headY + _unitHeadR * 0.60,
-          )
-          ..quadraticBezierTo(
-            0.5 + side * _unitHeadR * 0.78,
-            _headY + _unitHeadR * 0.58,
-            0.5 + side * _unitHeadR * 0.80,
             _headY + _unitHeadR * 0.22,
+            0.5 + side * _unitHeadR * 0.95,
+            _headY + _unitHeadR * 0.50,
           )
           ..quadraticBezierTo(
-            0.5 + side * _unitHeadR * 0.82,
-            _headY - _unitHeadR * 0.12,
-            0.5 + side * _unitHeadR * 0.88,
+            0.5 + side * _unitHeadR * 0.85,
+            _headY + _unitHeadR * 0.48,
+            0.5 + side * _unitHeadR * 0.87,
+            _headY + _unitHeadR * 0.18,
+          )
+          ..quadraticBezierTo(
+            0.5 + side * _unitHeadR * 0.89,
+            _headY - _unitHeadR * 0.14,
+            0.5 + side * _unitHeadR * 0.92,
             _headY - _unitHeadR * 0.42,
           )
           ..close(),
         _fill(palette.hair),
       );
+      // One loose face-framing strand in front of the tucked hair, the way
+      // the reference has a lock escaping the bun beside each cheek.
+      canvas.drawPath(
+        taperedPath(
+          [
+            Offset(0.5 + side * _unitHeadR * 0.84, _headY - _unitHeadR * 0.30),
+            Offset(0.5 + side * _unitHeadR * 0.93, _headY + _unitHeadR * 0.12),
+            Offset(0.5 + side * _unitHeadR * 0.82, _headY + _unitHeadR * 0.52),
+          ],
+          [0.0075, 0.0050, 0.0022],
+        ),
+        _fill(palette.hair),
+      );
       canvas.restore();
     }
 
+    // The bun: hair gathered above the crown. A dark knot shadow where the
+    // hair pulls tight, a soft-inked bun, strand strokes over it and the tie
+    // band across its base. Drawn unclipped: it sits proud of the skull.
+    //
+    // Everything below is scaled by [bs]. The bun's sizes were originally
+    // written as bare unit numbers beside a 0.099 skull, so shrinking the head
+    // left the bun the same size and it started to outweigh the face.
+    final bs = _unitHeadR / 0.099;
+    final bunY = _headY - _unitHeadR * 1.40;
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(0.5, _headY - _unitHeadR * 1.16),
+        width: 0.100 * bs,
+        height: 0.030 * bs,
+      ),
+      _fill(palette.hairShade.withValues(alpha: 0.9)),
+    );
+    canvas.drawCircle(
+      Offset(0.5, bunY),
+      0.057 * bs,
+      _stroke(palette.outline, _ink * 0.6),
+    );
+    canvas.drawCircle(Offset(0.5, bunY), 0.057 * bs, _fill(palette.hair));
+    final strand = _stroke(
+      palette.hairShade.withValues(alpha: 0.85),
+      0.0055 * bs,
+    );
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(0.5 - 0.044 * bs, bunY - 0.022 * bs)
+        ..quadraticBezierTo(
+          0.5,
+          bunY - 0.060 * bs,
+          0.5 + 0.042 * bs,
+          bunY - 0.020 * bs,
+        ),
+      strand,
+    );
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(0.5 - 0.050 * bs, bunY + 0.006 * bs)
+        ..quadraticBezierTo(
+          0.5 - 0.004 * bs,
+          bunY - 0.033 * bs,
+          0.5 + 0.048 * bs,
+          bunY + 0.004 * bs,
+        ),
+      strand,
+    );
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(0.5 - 0.040 * bs, bunY + 0.030 * bs)
+        ..quadraticBezierTo(
+          0.5 + 0.006 * bs,
+          bunY + 0.002 * bs,
+          0.5 + 0.038 * bs,
+          bunY + 0.028 * bs,
+        ),
+      strand,
+    );
+    // A soft highlight where the light catches the bun.
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(0.5 - 0.030 * bs, bunY - 0.030 * bs)
+        ..quadraticBezierTo(
+          0.5 - 0.004 * bs,
+          bunY - 0.048 * bs,
+          0.5 + 0.024 * bs,
+          bunY - 0.034 * bs,
+        ),
+      _stroke(
+        const ui.Color(0xFFA5714B).withValues(alpha: 0.55),
+        0.007 * bs,
+      ),
+    );
+    // The tie band across the bun's base.
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(0.5 - 0.034 * bs, bunY + 0.034 * bs)
+        ..quadraticBezierTo(
+          0.5,
+          bunY + 0.054 * bs,
+          0.5 + 0.034 * bs,
+          bunY + 0.034 * bs,
+        ),
+      _stroke(palette.hairShade, 0.0075 * bs),
+    );
+
     _paintFace(canvas, head);
     canvas.restore();
+  }
 
-    // The shirt opening sits in front of the neck base, so the neck reads as
+  /// Neck and collar, drawn under both arms.
+  ///
+  /// This sits before the arms rather than inside [_paintHead] because the
+  /// shirt bib is clothing: with the collar drawn last it painted over any
+  /// forearm crossing the upper chest, which is every two-handed sign once the
+  /// base hand moved to the middle of the body. The neck stays vertical while
+  /// the head tilts over it — a neck that swung with the head was only ever
+  /// hidden by the skull sitting on top of it.
+  void _paintNeck(Canvas canvas) {
+    final neckBase = _shoulderY - 0.012;
+
+    // Neck: narrower than the head, and the jaw casts across its top so it
+    // reads as a cylinder in light rather than a slab.
+    final neckTop = _headY + _unitHeadR * 0.60;
+    canvas.drawLine(
+      Offset(0.5, neckTop),
+      Offset(0.5, neckBase),
+      _stroke(palette.skin, 0.056),
+    );
+    canvas.drawLine(
+      Offset(0.5, neckTop + 0.002),
+      Offset(0.5, neckTop + 0.026),
+      _stroke(palette.skinDeep.withValues(alpha: 0.55), 0.056),
+    );
+
+    // The shirt bib sits in front of the neck base, so the neck reads as
     // going into a collar rather than resting on top of one.
     final bib = ui.Path()
       ..moveTo(0.5 - 0.058, neckBase - 0.026)
@@ -492,11 +781,38 @@ class AvatarPainter extends CustomPainter {
       ..lineTo(0.5 + 0.058, neckBase + 0.090)
       ..lineTo(0.5 - 0.058, neckBase + 0.090)
       ..close();
-    canvas.drawPath(bib, _fill(palette.shirt));
+    canvas.drawPath(
+      bib,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0.5, neckBase - 0.026),
+          Offset(0.5, neckBase + 0.090),
+          const [ui.Color(0xFFE4BEC8), ui.Color(0xFFD8ACB7)],
+        ),
+    );
+    // Crew-neck band: a ribbed ring of slightly deeper pink. The reference
+    // tee has a soft rolled collar, not a dark outline seam.
     final collar = ui.Path()
       ..moveTo(0.5 - 0.058, neckBase - 0.026)
-      ..quadraticBezierTo(0.5, neckBase + 0.016, 0.5 + 0.058, neckBase - 0.026);
-    canvas.drawPath(collar, _stroke(palette.sleeve, 0.013));
+      ..quadraticBezierTo(0.5, neckBase + 0.016, 0.5 + 0.058, neckBase - 0.026)
+      ..lineTo(0.5 + 0.058, neckBase - 0.004)
+      ..quadraticBezierTo(0.5, neckBase + 0.038, 0.5 - 0.058, neckBase - 0.004)
+      ..close();
+    canvas.drawPath(collar, _fill(palette.sleeve));
+    // One rib line across the band, and the shadow the chin throws on the
+    // chest just under it.
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(0.5 - 0.053, neckBase - 0.016)
+        ..quadraticBezierTo(0.5, neckBase + 0.025, 0.5 + 0.053, neckBase - 0.016),
+      _stroke(palette.shirtShade.withValues(alpha: 0.7), 0.0035),
+    );
+    canvas.drawPath(
+      ui.Path()
+        ..moveTo(0.5 - 0.040, neckBase + 0.046)
+        ..quadraticBezierTo(0.5, neckBase + 0.060, 0.5 + 0.040, neckBase + 0.046),
+      _stroke(palette.shirtShade.withValues(alpha: 0.5), 0.009),
+    );
   }
 
   /// The face, sized for the ~270 pixel card it actually renders into.
@@ -569,7 +885,16 @@ class AvatarPainter extends CustomPainter {
       // The iris is deliberately smaller than the eye's height so a band of
       // white survives under it — an iris that fills the almond reads as a
       // bruise rather than an eye.
-      final iris = Offset(cx + turn * 0.45, eyeY + 0.0008 * hs);
+      //
+      // The horizontal shift is what makes the eyes alive: the head turns to
+      // the signing hand, and the pupils lead or trail it by up to two pixels
+      // instead of sitting dead centre in a moving head. The eye path clips
+      // them, so the iris never leaves the almond.
+      final look = pose.face.gaze.clamp(-1.0, 1.0);
+      final iris = Offset(
+        cx + turn * 0.25 + look * 0.011 * hs,
+        eyeY + 0.0008 * hs,
+      );
       canvas.drawCircle(iris, 0.0072 * hs, _fill(irisTone));
       canvas.drawCircle(
         iris + Offset(0, 0.0004 * hs),
