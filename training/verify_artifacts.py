@@ -59,7 +59,7 @@ def check_state_dict(state: dict, src_vocab: Vocab, tgt_vocab: Vocab,
         got = tuple(state[name].shape)
         if got != want:
             problems.append(f"{name}: state_dict {got} != config {want}")
-    if tuple(state["encoder.rnn.weight_ih_l0_reverse"].shape) != \
+    if tuple(state["encoder.rnn_reverse.weight_ih_l0"].shape) != \
             tuple(state["encoder.rnn.weight_ih_l0"].shape):
         problems.append("encoder is not bidirectional with matched directions")
     return problems

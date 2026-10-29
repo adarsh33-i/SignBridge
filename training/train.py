@@ -127,19 +127,42 @@ def apply_src_dropout(src: torch.Tensor, rate: float) -> torch.Tensor:
 
 
 class Encoder(nn.Module):
+    """Bidirectional GRU that never reads the trailing PAD of a batch.
+
+    `nn.GRU(bidirectional=True)` scans the padded tensor right to left, so its
+    backward state starts from PAD and every backward output carries how much
+    padding the batch happened to have. That makes a caption's gloss depend on
+    what else is in the batch. Two forward GRUs over the real length do not:
+    the reverse one is fed the sequence gathered from `src_len - 1` backwards,
+    so its last real step is the whole-sequence summary.
+    """
+
     def __init__(self, vocab_size: int, emb: int, hidden: int, dropout: float) -> None:
         super().__init__()
         self.hidden = hidden
         self.embed = nn.Embedding(vocab_size, emb, padding_idx=PAD)
         self.dropout = nn.Dropout(dropout)
-        self.rnn = nn.GRU(emb, hidden, batch_first=True, bidirectional=True)
+        self.rnn = nn.GRU(emb, hidden, batch_first=True)
+        self.rnn_reverse = nn.GRU(emb, hidden, batch_first=True)
 
     def forward(self, src: torch.Tensor, src_len: torch.Tensor):
-        out, _ = self.rnn(self.dropout(self.embed(src)))
+        emb = self.dropout(self.embed(src))
+        width = src.size(1)
+        back = src_len.clamp(min=1).view(-1, 1) - 1
+        back = back - torch.arange(width, device=src.device).unsqueeze(0)
+        back = back.clamp(min=0)
+        index = back.unsqueeze(-1).expand(-1, -1, emb.size(-1))
+
+        out_fwd, _ = self.rnn(emb)
+        out_rev, _ = self.rnn_reverse(torch.gather(emb, 1, index))
+        out_bwd = torch.gather(
+            out_rev, 1, back.unsqueeze(-1).expand(-1, -1, self.hidden)
+        )
+
         last = (src_len - 1).clamp(min=0).view(-1, 1, 1).expand(-1, 1, self.hidden)
-        h_fwd = out[:, :, : self.hidden].gather(1, last).squeeze(1)
-        h_bwd = out[:, 0, self.hidden :]
-        return out, torch.cat([h_fwd, h_bwd], dim=-1)
+        h_fwd = out_fwd.gather(1, last).squeeze(1)
+        h_bwd = out_bwd.gather(1, last).squeeze(1)
+        return torch.cat([out_fwd, out_bwd], dim=-1), torch.cat([h_fwd, h_bwd], dim=-1)
 
 
 class Decoder(nn.Module):
